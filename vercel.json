@@ -1,26 +1,4 @@
 {
-  "buildCommand": "npx convex deploy --cmd \"bun run build\" && mkdir -p api && cp dist/server/server.js api/server.js",
-  "installCommand": "bun install",
-  "outputDirectory": "dist/client",
-  "routes": [
-    {
-      "src": "/assets/(.*)",
-      "dest": "/assets/$1"
-    },
-    {
-      "src": "/images/(.*)",
-      "dest": "/images/$1"
-    },
-    {
-      "src": "/(favicon.ico|manifest.json|robots.txt|logo192.png|logo512.png|image.webp|tanstack-circle-logo.png|tanstack-word-logo-white.svg)",
-      "dest": "/$1"
-    },
-    {
-      "handle": "filesystem"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/api/index.js"
-    }
-  ]
+  "buildCommand": "npx convex deploy --cmd 'bun run build'",
+  "installCommand": "bun install"
 }
