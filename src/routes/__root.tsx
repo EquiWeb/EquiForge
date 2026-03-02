@@ -2,6 +2,7 @@ import { HeadContent, Scripts, createRootRoute } from '@tanstack/react-router'
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import { TanStackDevtools } from '@tanstack/react-devtools'
 import { Analytics } from '@vercel/analytics/react'
+import { SpeedInsights } from '@vercel/speed-insights/react'
 import { ConvexAuthProvider } from '@convex-dev/auth/react'
 import { ConvexReactClient } from 'convex/react'
 import { useState } from 'react'
@@ -87,6 +88,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
           ]}
         />
         <Analytics />
+        <SpeedInsights />
         <Scripts />
       </body>
     </html>
