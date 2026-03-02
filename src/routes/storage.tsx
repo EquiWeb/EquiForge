@@ -32,7 +32,7 @@ function Storage() {
               Sample MCP request
             </p>
             <pre className="m-0 mt-3 overflow-x-auto text-xs text-[var(--sea-ink)]">
-              <code>{`POST /mcp/storage.provision
+              <code>{`POST /mcp/storage/provision
 {
   "project": "agent-lab",
   "region": "us-east-1",

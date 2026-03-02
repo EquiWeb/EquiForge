@@ -17,10 +17,6 @@ const config = defineConfig({
     tanstackStart(),
     viteReact(),
   ],
-  build: {
-    outDir: 'dist/client',
-    emptyOutDir: true,
-  },
 })
 
 export default config

@@ -1,5 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { createStorageService } from '#/lib/mcpStore'
+import { ConvexHttpClient } from 'convex/browser'
+import type { FunctionReference } from 'convex/server'
 
 type StorageProvisionRequest = {
   accountId: string
@@ -28,13 +29,28 @@ export const Route = createFileRoute('/mcp/storage/provision')({
           )
         }
 
-        const result = createStorageService({
-          accountId: payload.accountId,
-          project: payload.project,
-          region: payload.region,
-          usageCapGb: payload.usageCapGb,
-          paymentProfile: payload.paymentProfile,
-        })
+        const convexUrl = process.env.VITE_CONVEX_URL
+        if (!convexUrl) {
+          return Response.json(
+            {
+              error: 'Missing VITE_CONVEX_URL',
+            },
+            { status: 500 },
+          )
+        }
+        const client = new ConvexHttpClient(convexUrl)
+        const result = await client.mutation(
+          'mcp:createStorageService' as unknown as FunctionReference<
+            'mutation'
+          >,
+          {
+            accountId: payload.accountId,
+            project: payload.project,
+            region: payload.region,
+            usageCapGb: payload.usageCapGb,
+            paymentProfile: payload.paymentProfile,
+          },
+        )
 
         if ('error' in result) {
           return Response.json(
@@ -45,17 +61,24 @@ export const Route = createFileRoute('/mcp/storage/provision')({
           )
         }
 
+        const service = await client.query(
+          'mcp:getStorageService' as unknown as FunctionReference<'query'>,
+          {
+            serviceId: result,
+          },
+        )
+
         return Response.json({
-          serviceId: result.service.id,
-          status: result.service.status,
-          region: result.service.region,
-          project: result.service.project,
-          usageCapGb: result.service.usageCapGb,
-          paymentProfile: result.service.paymentProfile,
-          endpoint: result.service.endpoint,
-          accessKeyId: result.service.accessKeyId,
-          secretAccessKey: result.service.secretAccessKey,
-          createdAt: result.service.createdAt,
+          serviceId: result,
+          status: service?.status ?? 'provisioning',
+          region: service?.region ?? payload.region,
+          project: service?.project ?? payload.project,
+          usageCapGb: service?.usageCapGb ?? payload.usageCapGb ?? null,
+          paymentProfile: service?.paymentProfile ?? payload.paymentProfile,
+          endpoint: service?.endpoint ?? 'https://storage.equiforge.com',
+          accessKeyId: service?.accessKeyId ?? '',
+          secretAccessKey: service?.secretAccessKey ?? '',
+          createdAt: service?.createdAt ?? null,
         })
       },
     },

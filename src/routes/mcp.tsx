@@ -26,23 +26,23 @@ function McpPage() {
           <div className="mt-4 grid gap-3">
             {[
               {
-                name: 'mcp.account.create',
+                name: '/mcp/account/create',
                 description: 'Create a new EquiForge account for an agent org.',
               },
               {
-                name: 'mcp.payment.attach',
+                name: '/mcp/payment/attach',
                 description: 'Bind x402 payment credentials to the account.',
               },
               {
-                name: 'mcp.storage.provision',
+                name: '/mcp/storage/provision',
                 description: 'Provision S3-compatible storage with quotas.',
               },
               {
-                name: 'mcp.service.status',
+                name: '/mcp/service/status',
                 description: 'Fetch provisioning state and usage metrics.',
               },
               {
-                name: 'mcp.keys.rotate',
+                name: '/mcp/keys/rotate',
                 description: 'Rotate access keys for storage services.',
               },
             ].map((endpoint) => (
@@ -70,13 +70,13 @@ function McpPage() {
             storage.
           </p>
           <pre className="mt-4 overflow-x-auto text-xs text-[var(--sea-ink)]">
-            <code>{`POST /mcp/account.create
+            <code>{`POST /mcp/account/create
 {
   "orgName": "Forge Labs",
   "contact": "ops@forgelabs.ai"
 }
 
-POST /mcp/payment.attach
+POST /mcp/payment/attach
 {
   "profile": "x402-default",
   "wallet": "x402://wallet/0xabc..."

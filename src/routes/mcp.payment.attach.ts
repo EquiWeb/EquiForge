@@ -1,5 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { attachPaymentProfile } from '#/lib/mcpStore'
+import { ConvexHttpClient } from 'convex/browser'
+import type { FunctionReference } from 'convex/server'
 
 type AttachPaymentRequest = {
   accountId: string
@@ -21,16 +22,31 @@ export const Route = createFileRoute('/mcp/payment/attach')({
           )
         }
 
-        const attached = attachPaymentProfile({
-          accountId: payload.accountId,
-          profile: payload.profile,
-          wallet: payload.wallet,
-        })
-
-        if (!attached) {
+        const convexUrl = process.env.VITE_CONVEX_URL
+        if (!convexUrl) {
           return Response.json(
             {
-              error: 'Account not found',
+              error: 'Missing VITE_CONVEX_URL',
+            },
+            { status: 500 },
+          )
+        }
+        const client = new ConvexHttpClient(convexUrl)
+        const result = await client.mutation(
+          'mcp:attachPaymentProfile' as unknown as FunctionReference<
+            'mutation'
+          >,
+          {
+            accountId: payload.accountId,
+            profile: payload.profile,
+            wallet: payload.wallet,
+          },
+        )
+
+        if ('error' in result) {
+          return Response.json(
+            {
+              error: result.error,
             },
             { status: 404 },
           )
@@ -38,9 +54,9 @@ export const Route = createFileRoute('/mcp/payment/attach')({
 
         return Response.json({
           status: 'attached',
-          accountId: attached.accountId,
-          profile: attached.profile,
-          wallet: attached.wallet,
+          accountId: payload.accountId,
+          profile: result.profile,
+          wallet: result.wallet,
         })
       },
     },

@@ -1,5 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { getStorageService } from '#/lib/mcpStore'
+import { ConvexHttpClient } from 'convex/browser'
+import type { FunctionReference } from 'convex/server'
 
 export const Route = createFileRoute('/mcp/service/status')({
   server: {
@@ -16,7 +17,22 @@ export const Route = createFileRoute('/mcp/service/status')({
           )
         }
 
-        const service = getStorageService(serviceId)
+        const convexUrl = process.env.VITE_CONVEX_URL
+        if (!convexUrl) {
+          return Response.json(
+            {
+              error: 'Missing VITE_CONVEX_URL',
+            },
+            { status: 500 },
+          )
+        }
+        const client = new ConvexHttpClient(convexUrl)
+        const service = await client.query(
+          'mcp:getStorageService' as unknown as FunctionReference<'query'>,
+          {
+            serviceId,
+          },
+        )
         if (!service) {
           return Response.json(
             {

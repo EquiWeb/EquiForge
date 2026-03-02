@@ -1,5 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { rotateStorageKeys } from '#/lib/mcpStore'
+import { ConvexHttpClient } from 'convex/browser'
+import type { FunctionReference } from 'convex/server'
 
 type RotateKeysRequest = {
   serviceId: string
@@ -20,22 +21,49 @@ export const Route = createFileRoute('/mcp/keys/rotate')({
           )
         }
 
-        const result = rotateStorageKeys(payload.serviceId, payload.reason)
-        if (!result) {
+        const convexUrl = process.env.VITE_CONVEX_URL
+        if (!convexUrl) {
           return Response.json(
             {
-              error: 'Service not found',
+              error: 'Missing VITE_CONVEX_URL',
+            },
+            { status: 500 },
+          )
+        }
+        const client = new ConvexHttpClient(convexUrl)
+        const result = await client.mutation(
+          'mcp:rotateStorageKeys' as unknown as FunctionReference<
+            'mutation'
+          >,
+          {
+            serviceId: payload.serviceId,
+            reason: payload.reason,
+          },
+        )
+        if ('error' in result) {
+          return Response.json(
+            {
+              error: result.error,
             },
             { status: 404 },
           )
         }
 
+        const service = await client.query(
+          'mcp:getStorageService' as unknown as FunctionReference<
+            'query'
+          >,
+          {
+            serviceId: payload.serviceId,
+          },
+        )
+
         return Response.json({
-          serviceId: result.service.id,
+          serviceId: payload.serviceId,
           status: 'rotated',
-          accessKeyId: result.service.accessKeyId,
-          secretAccessKey: result.service.secretAccessKey,
-          rotatedAt: result.service.updatedAt,
+          accessKeyId: service?.accessKeyId ?? '',
+          secretAccessKey: service?.secretAccessKey ?? '',
+          rotatedAt: result.updatedAt,
           reason: result.reason,
         })
       },

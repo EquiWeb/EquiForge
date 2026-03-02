@@ -13,6 +13,7 @@ import { Route as StorageRouteImport } from './routes/storage'
 import { Route as RssDotxmlRouteImport } from './routes/rss[.]xml'
 import { Route as PaymentsRouteImport } from './routes/payments'
 import { Route as McpRouteImport } from './routes/mcp'
+import { Route as DemoRouteImport } from './routes/demo'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AboutRouteImport } from './routes/about'
@@ -43,6 +44,11 @@ const PaymentsRoute = PaymentsRouteImport.update({
 const McpRoute = McpRouteImport.update({
   id: '/mcp',
   path: '/mcp',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DemoRoute = DemoRouteImport.update({
+  id: '/demo',
+  path: '/demo',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardRoute = DashboardRouteImport.update({
@@ -106,6 +112,7 @@ export interface FileRoutesByFullPath {
   '/about': typeof AboutRoute
   '/auth': typeof AuthRoute
   '/dashboard': typeof DashboardRoute
+  '/demo': typeof DemoRoute
   '/mcp': typeof McpRouteWithChildren
   '/payments': typeof PaymentsRoute
   '/rss.xml': typeof RssDotxmlRoute
@@ -123,6 +130,7 @@ export interface FileRoutesByTo {
   '/about': typeof AboutRoute
   '/auth': typeof AuthRoute
   '/dashboard': typeof DashboardRoute
+  '/demo': typeof DemoRoute
   '/mcp': typeof McpRouteWithChildren
   '/payments': typeof PaymentsRoute
   '/rss.xml': typeof RssDotxmlRoute
@@ -141,6 +149,7 @@ export interface FileRoutesById {
   '/about': typeof AboutRoute
   '/auth': typeof AuthRoute
   '/dashboard': typeof DashboardRoute
+  '/demo': typeof DemoRoute
   '/mcp': typeof McpRouteWithChildren
   '/payments': typeof PaymentsRoute
   '/rss.xml': typeof RssDotxmlRoute
@@ -160,6 +169,7 @@ export interface FileRouteTypes {
     | '/about'
     | '/auth'
     | '/dashboard'
+    | '/demo'
     | '/mcp'
     | '/payments'
     | '/rss.xml'
@@ -177,6 +187,7 @@ export interface FileRouteTypes {
     | '/about'
     | '/auth'
     | '/dashboard'
+    | '/demo'
     | '/mcp'
     | '/payments'
     | '/rss.xml'
@@ -194,6 +205,7 @@ export interface FileRouteTypes {
     | '/about'
     | '/auth'
     | '/dashboard'
+    | '/demo'
     | '/mcp'
     | '/payments'
     | '/rss.xml'
@@ -212,6 +224,7 @@ export interface RootRouteChildren {
   AboutRoute: typeof AboutRoute
   AuthRoute: typeof AuthRoute
   DashboardRoute: typeof DashboardRoute
+  DemoRoute: typeof DemoRoute
   McpRoute: typeof McpRouteWithChildren
   PaymentsRoute: typeof PaymentsRoute
   RssDotxmlRoute: typeof RssDotxmlRoute
@@ -248,6 +261,13 @@ declare module '@tanstack/react-router' {
       path: '/mcp'
       fullPath: '/mcp'
       preLoaderRoute: typeof McpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/demo': {
+      id: '/demo'
+      path: '/demo'
+      fullPath: '/demo'
+      preLoaderRoute: typeof DemoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboard': {
@@ -353,6 +373,7 @@ const rootRouteChildren: RootRouteChildren = {
   AboutRoute: AboutRoute,
   AuthRoute: AuthRoute,
   DashboardRoute: DashboardRoute,
+  DemoRoute: DemoRoute,
   McpRoute: McpRouteWithChildren,
   PaymentsRoute: PaymentsRoute,
   RssDotxmlRoute: RssDotxmlRoute,
