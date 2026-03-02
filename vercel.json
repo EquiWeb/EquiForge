@@ -1,11 +1,12 @@
 {
   "buildCommand": "bun run build",
+  "installCommand": "bun install",
   "builds": [
     {
       "src": "dist/server/server.js",
       "use": "@vercel/node",
       "config": {
-        "runtime": "nodejs18.x"
+        "runtime": "nodejs22.x"
       }
     },
     {
@@ -14,6 +15,18 @@
     }
   ],
   "routes": [
+    {
+      "src": "/assets/(.*)",
+      "dest": "/dist/client/assets/$1"
+    },
+    {
+      "src": "/images/(.*)",
+      "dest": "/dist/client/images/$1"
+    },
+    {
+      "src": "/(favicon.ico|manifest.json|robots.txt|logo192.png|logo512.png|image.webp|tanstack-circle-logo.png|tanstack-word-logo-white.svg)",
+      "dest": "/dist/client/$1"
+    },
     {
       "handle": "filesystem"
     },
