@@ -16,7 +16,14 @@ const config = defineConfig({
     tsconfigPaths({ projects: ['./tsconfig.json'] }),
     tailwindcss(),
     tanstackStart(),
-    nitro({ preset: 'vercel' }),
+    nitro({
+      preset: 'vercel',
+      vercel: {
+        functions: {
+          runtime: 'nodejs22.x',
+        },
+      },
+    }),
     viteReact(),
   ],
 })
