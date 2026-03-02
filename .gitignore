@@ -25,7 +25,7 @@
 bun.lock
 dist
 .env.local
-convex/_generated
+# convex/_generated is committed so Vercel builds work without CONVEX_DEPLOY_KEY
 
 # debug
 npm-debug.log*
