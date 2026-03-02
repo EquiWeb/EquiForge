@@ -19,12 +19,9 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as BlogIndexRouteImport } from './routes/blog.index'
+import { Route as S3SplatRouteImport } from './routes/s3.$'
 import { Route as BlogSlugRouteImport } from './routes/blog.$slug'
-import { Route as McpStorageProvisionRouteImport } from './routes/mcp.storage.provision'
-import { Route as McpServiceStatusRouteImport } from './routes/mcp.service.status'
-import { Route as McpPaymentAttachRouteImport } from './routes/mcp.payment.attach'
-import { Route as McpKeysRotateRouteImport } from './routes/mcp.keys.rotate'
-import { Route as McpAccountCreateRouteImport } from './routes/mcp.account.create'
+import { Route as ApiMcpRouteImport } from './routes/api.mcp'
 
 const StorageRoute = StorageRouteImport.update({
   id: '/storage',
@@ -76,35 +73,20 @@ const BlogIndexRoute = BlogIndexRouteImport.update({
   path: '/blog/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const S3SplatRoute = S3SplatRouteImport.update({
+  id: '/s3/$',
+  path: '/s3/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const BlogSlugRoute = BlogSlugRouteImport.update({
   id: '/blog/$slug',
   path: '/blog/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
-const McpStorageProvisionRoute = McpStorageProvisionRouteImport.update({
-  id: '/storage/provision',
-  path: '/storage/provision',
-  getParentRoute: () => McpRoute,
-} as any)
-const McpServiceStatusRoute = McpServiceStatusRouteImport.update({
-  id: '/service/status',
-  path: '/service/status',
-  getParentRoute: () => McpRoute,
-} as any)
-const McpPaymentAttachRoute = McpPaymentAttachRouteImport.update({
-  id: '/payment/attach',
-  path: '/payment/attach',
-  getParentRoute: () => McpRoute,
-} as any)
-const McpKeysRotateRoute = McpKeysRotateRouteImport.update({
-  id: '/keys/rotate',
-  path: '/keys/rotate',
-  getParentRoute: () => McpRoute,
-} as any)
-const McpAccountCreateRoute = McpAccountCreateRouteImport.update({
-  id: '/account/create',
-  path: '/account/create',
-  getParentRoute: () => McpRoute,
+const ApiMcpRoute = ApiMcpRouteImport.update({
+  id: '/api/mcp',
+  path: '/api/mcp',
+  getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -113,17 +95,14 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/dashboard': typeof DashboardRoute
   '/demo': typeof DemoRoute
-  '/mcp': typeof McpRouteWithChildren
+  '/mcp': typeof McpRoute
   '/payments': typeof PaymentsRoute
   '/rss.xml': typeof RssDotxmlRoute
   '/storage': typeof StorageRoute
+  '/api/mcp': typeof ApiMcpRoute
   '/blog/$slug': typeof BlogSlugRoute
+  '/s3/$': typeof S3SplatRoute
   '/blog/': typeof BlogIndexRoute
-  '/mcp/account/create': typeof McpAccountCreateRoute
-  '/mcp/keys/rotate': typeof McpKeysRotateRoute
-  '/mcp/payment/attach': typeof McpPaymentAttachRoute
-  '/mcp/service/status': typeof McpServiceStatusRoute
-  '/mcp/storage/provision': typeof McpStorageProvisionRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -131,17 +110,14 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/dashboard': typeof DashboardRoute
   '/demo': typeof DemoRoute
-  '/mcp': typeof McpRouteWithChildren
+  '/mcp': typeof McpRoute
   '/payments': typeof PaymentsRoute
   '/rss.xml': typeof RssDotxmlRoute
   '/storage': typeof StorageRoute
+  '/api/mcp': typeof ApiMcpRoute
   '/blog/$slug': typeof BlogSlugRoute
+  '/s3/$': typeof S3SplatRoute
   '/blog': typeof BlogIndexRoute
-  '/mcp/account/create': typeof McpAccountCreateRoute
-  '/mcp/keys/rotate': typeof McpKeysRotateRoute
-  '/mcp/payment/attach': typeof McpPaymentAttachRoute
-  '/mcp/service/status': typeof McpServiceStatusRoute
-  '/mcp/storage/provision': typeof McpStorageProvisionRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -150,17 +126,14 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/dashboard': typeof DashboardRoute
   '/demo': typeof DemoRoute
-  '/mcp': typeof McpRouteWithChildren
+  '/mcp': typeof McpRoute
   '/payments': typeof PaymentsRoute
   '/rss.xml': typeof RssDotxmlRoute
   '/storage': typeof StorageRoute
+  '/api/mcp': typeof ApiMcpRoute
   '/blog/$slug': typeof BlogSlugRoute
+  '/s3/$': typeof S3SplatRoute
   '/blog/': typeof BlogIndexRoute
-  '/mcp/account/create': typeof McpAccountCreateRoute
-  '/mcp/keys/rotate': typeof McpKeysRotateRoute
-  '/mcp/payment/attach': typeof McpPaymentAttachRoute
-  '/mcp/service/status': typeof McpServiceStatusRoute
-  '/mcp/storage/provision': typeof McpStorageProvisionRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -174,13 +147,10 @@ export interface FileRouteTypes {
     | '/payments'
     | '/rss.xml'
     | '/storage'
+    | '/api/mcp'
     | '/blog/$slug'
+    | '/s3/$'
     | '/blog/'
-    | '/mcp/account/create'
-    | '/mcp/keys/rotate'
-    | '/mcp/payment/attach'
-    | '/mcp/service/status'
-    | '/mcp/storage/provision'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -192,13 +162,10 @@ export interface FileRouteTypes {
     | '/payments'
     | '/rss.xml'
     | '/storage'
+    | '/api/mcp'
     | '/blog/$slug'
+    | '/s3/$'
     | '/blog'
-    | '/mcp/account/create'
-    | '/mcp/keys/rotate'
-    | '/mcp/payment/attach'
-    | '/mcp/service/status'
-    | '/mcp/storage/provision'
   id:
     | '__root__'
     | '/'
@@ -210,13 +177,10 @@ export interface FileRouteTypes {
     | '/payments'
     | '/rss.xml'
     | '/storage'
+    | '/api/mcp'
     | '/blog/$slug'
+    | '/s3/$'
     | '/blog/'
-    | '/mcp/account/create'
-    | '/mcp/keys/rotate'
-    | '/mcp/payment/attach'
-    | '/mcp/service/status'
-    | '/mcp/storage/provision'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -225,11 +189,13 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   DashboardRoute: typeof DashboardRoute
   DemoRoute: typeof DemoRoute
-  McpRoute: typeof McpRouteWithChildren
+  McpRoute: typeof McpRoute
   PaymentsRoute: typeof PaymentsRoute
   RssDotxmlRoute: typeof RssDotxmlRoute
   StorageRoute: typeof StorageRoute
+  ApiMcpRoute: typeof ApiMcpRoute
   BlogSlugRoute: typeof BlogSlugRoute
+  S3SplatRoute: typeof S3SplatRoute
   BlogIndexRoute: typeof BlogIndexRoute
 }
 
@@ -305,6 +271,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BlogIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/s3/$': {
+      id: '/s3/$'
+      path: '/s3/$'
+      fullPath: '/s3/$'
+      preLoaderRoute: typeof S3SplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/blog/$slug': {
       id: '/blog/$slug'
       path: '/blog/$slug'
@@ -312,61 +285,15 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BlogSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/mcp/storage/provision': {
-      id: '/mcp/storage/provision'
-      path: '/storage/provision'
-      fullPath: '/mcp/storage/provision'
-      preLoaderRoute: typeof McpStorageProvisionRouteImport
-      parentRoute: typeof McpRoute
-    }
-    '/mcp/service/status': {
-      id: '/mcp/service/status'
-      path: '/service/status'
-      fullPath: '/mcp/service/status'
-      preLoaderRoute: typeof McpServiceStatusRouteImport
-      parentRoute: typeof McpRoute
-    }
-    '/mcp/payment/attach': {
-      id: '/mcp/payment/attach'
-      path: '/payment/attach'
-      fullPath: '/mcp/payment/attach'
-      preLoaderRoute: typeof McpPaymentAttachRouteImport
-      parentRoute: typeof McpRoute
-    }
-    '/mcp/keys/rotate': {
-      id: '/mcp/keys/rotate'
-      path: '/keys/rotate'
-      fullPath: '/mcp/keys/rotate'
-      preLoaderRoute: typeof McpKeysRotateRouteImport
-      parentRoute: typeof McpRoute
-    }
-    '/mcp/account/create': {
-      id: '/mcp/account/create'
-      path: '/account/create'
-      fullPath: '/mcp/account/create'
-      preLoaderRoute: typeof McpAccountCreateRouteImport
-      parentRoute: typeof McpRoute
+    '/api/mcp': {
+      id: '/api/mcp'
+      path: '/api/mcp'
+      fullPath: '/api/mcp'
+      preLoaderRoute: typeof ApiMcpRouteImport
+      parentRoute: typeof rootRouteImport
     }
   }
 }
-
-interface McpRouteChildren {
-  McpAccountCreateRoute: typeof McpAccountCreateRoute
-  McpKeysRotateRoute: typeof McpKeysRotateRoute
-  McpPaymentAttachRoute: typeof McpPaymentAttachRoute
-  McpServiceStatusRoute: typeof McpServiceStatusRoute
-  McpStorageProvisionRoute: typeof McpStorageProvisionRoute
-}
-
-const McpRouteChildren: McpRouteChildren = {
-  McpAccountCreateRoute: McpAccountCreateRoute,
-  McpKeysRotateRoute: McpKeysRotateRoute,
-  McpPaymentAttachRoute: McpPaymentAttachRoute,
-  McpServiceStatusRoute: McpServiceStatusRoute,
-  McpStorageProvisionRoute: McpStorageProvisionRoute,
-}
-
-const McpRouteWithChildren = McpRoute._addFileChildren(McpRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
@@ -374,11 +301,13 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   DashboardRoute: DashboardRoute,
   DemoRoute: DemoRoute,
-  McpRoute: McpRouteWithChildren,
+  McpRoute: McpRoute,
   PaymentsRoute: PaymentsRoute,
   RssDotxmlRoute: RssDotxmlRoute,
   StorageRoute: StorageRoute,
+  ApiMcpRoute: ApiMcpRoute,
   BlogSlugRoute: BlogSlugRoute,
+  S3SplatRoute: S3SplatRoute,
   BlogIndexRoute: BlogIndexRoute,
 }
 export const routeTree = rootRouteImport
