@@ -43,13 +43,13 @@ async function handlePut(request: Request, splatPath: string): Promise<Response>
 
   // PUT /s3/{bucket} — create bucket
   if (!key) {
-    const account = await client.query(api.mcp.apiGetAccountForUser as any, { userId })
+    const account = await client.query(api.mcp.apiGetAccountForUser, { userId })
     if (!account) {
       return xmlError('NoSuchAccount', 'No account found for this user', 404)
     }
 
     try {
-      const bucketId = await client.mutation(api.storage.apiCreateBucket as any, {
+      const bucketId = await client.mutation(api.storage.apiCreateBucket, {
         userId,
         accountId: account._id,
         name: bucket,
@@ -59,22 +59,23 @@ async function handlePut(request: Request, splatPath: string): Promise<Response>
         status: 200,
         headers: { Location: `/${bucket}`, 'x-amz-bucket-id': bucketId },
       })
-    } catch (err: any) {
-      if (err.message?.includes('already exists')) {
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unknown error'
+      if (message.includes('already exists')) {
         return xmlError('BucketAlreadyExists', 'Bucket name already exists', 409)
       }
-      return xmlError('InternalError', err.message, 500)
+      return xmlError('InternalError', message, 500)
     }
   }
 
   // PUT /s3/{bucket}/{key} — upload object
-  const bucketDoc = await client.query(api.storage.getBucketByName as any, { name: bucket })
+  const bucketDoc = await client.query(api.storage.getBucketByName, { name: bucket })
   if (!bucketDoc) {
     return xmlError('NoSuchBucket', `Bucket '${bucket}' not found`, 404)
   }
 
   // Step 1: Get upload URL from Convex
-  const uploadUrl = await client.mutation(api.storage.generateUploadUrl as any, {})
+  const uploadUrl = await client.mutation(api.storage.generateUploadUrl, {})
 
   // Step 2: Stream the request body to Convex storage
   const contentType = request.headers.get('Content-Type') ?? 'application/octet-stream'
@@ -102,11 +103,11 @@ async function handlePut(request: Request, splatPath: string): Promise<Response>
   const etag = `"${hashArray.map((b) => b.toString(16).padStart(2, '0')).join('')}"`
 
   // Step 4: Record the object in Convex
-  await client.mutation(api.storage.apiPutObject as any, {
+  await client.mutation(api.storage.apiPutObject, {
     userId,
     bucketId: bucketDoc._id,
     key,
-    storageId,
+    storageId: storageId as Id<'_storage'>,
     size,
     contentType,
     etag,
@@ -131,7 +132,7 @@ async function handleGet(request: Request, splatPath: string): Promise<Response>
     return xmlError('InvalidBucketName', 'Bucket name is required', 400)
   }
 
-  const bucketDoc = await client.query(api.storage.getBucketByName as any, { name: bucket })
+  const bucketDoc = await client.query(api.storage.getBucketByName, { name: bucket })
   if (!bucketDoc) {
     return xmlError('NoSuchBucket', `Bucket '${bucket}' not found`, 404)
   }
@@ -144,7 +145,7 @@ async function handleGet(request: Request, splatPath: string): Promise<Response>
       ? parseInt(url.searchParams.get('max-keys')!, 10)
       : undefined
 
-    const result = await client.query(api.storage.listObjects as any, {
+    const result = await client.query(api.storage.listObjects, {
       bucketId: bucketDoc._id,
       prefix,
       maxKeys,
@@ -152,7 +153,7 @@ async function handleGet(request: Request, splatPath: string): Promise<Response>
 
     const contentsXml = result.objects
       .map(
-        (obj: any) =>
+        (obj) =>
           `<Contents>` +
           `<Key>${escapeXml(obj.key)}</Key>` +
           `<LastModified>${obj.lastModified}</LastModified>` +
@@ -181,7 +182,7 @@ async function handleGet(request: Request, splatPath: string): Promise<Response>
   }
 
   // GET /s3/{bucket}/{key} — download object
-  const obj = await client.query(api.storage.getObject as any, {
+  const obj = await client.query(api.storage.getObject, {
     bucketId: bucketDoc._id,
     key,
   })
@@ -191,7 +192,7 @@ async function handleGet(request: Request, splatPath: string): Promise<Response>
   }
 
   // Redirect to the Convex storage download URL
-  return Response.redirect(obj.url, 302)
+  return Response.redirect(obj.url!, 302)
 }
 
 // ---- DELETE: Delete bucket or object ----
@@ -208,7 +209,7 @@ async function handleDelete(request: Request, splatPath: string): Promise<Respon
     return xmlError('InvalidBucketName', 'Bucket name is required', 400)
   }
 
-  const bucketDoc = await client.query(api.storage.getBucketByName as any, { name: bucket })
+  const bucketDoc = await client.query(api.storage.getBucketByName, { name: bucket })
   if (!bucketDoc) {
     return xmlError('NoSuchBucket', `Bucket '${bucket}' not found`, 404)
   }
@@ -216,32 +217,34 @@ async function handleDelete(request: Request, splatPath: string): Promise<Respon
   // DELETE /s3/{bucket} — delete bucket
   if (!key) {
     try {
-      await client.mutation(api.storage.apiDeleteBucket as any, {
+      await client.mutation(api.storage.apiDeleteBucket, {
         userId,
         bucketId: bucketDoc._id,
       })
       return new Response(null, { status: 204 })
-    } catch (err: any) {
-      if (err.message?.includes('not empty')) {
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unknown error'
+      if (message.includes('not empty')) {
         return xmlError('BucketNotEmpty', 'Bucket is not empty', 409)
       }
-      return xmlError('InternalError', err.message, 500)
+      return xmlError('InternalError', message, 500)
     }
   }
 
   // DELETE /s3/{bucket}/{key} — delete object
   try {
-    await client.mutation(api.storage.apiDeleteObject as any, {
+    await client.mutation(api.storage.apiDeleteObject, {
       userId,
       bucketId: bucketDoc._id,
       key,
     })
     return new Response(null, { status: 204 })
-  } catch (err: any) {
-    if (err.message?.includes('not found')) {
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error'
+    if (message.includes('not found')) {
       return xmlError('NoSuchKey', `Object '${key}' not found`, 404)
     }
-    return xmlError('InternalError', err.message, 500)
+    return xmlError('InternalError', message, 500)
   }
 }
 
@@ -258,12 +261,12 @@ async function handleHead(request: Request, splatPath: string): Promise<Response
     return new Response(null, { status: 400 })
   }
 
-  const bucketDoc = await client.query(api.storage.getBucketByName as any, { name: bucket })
+  const bucketDoc = await client.query(api.storage.getBucketByName, { name: bucket })
   if (!bucketDoc) {
     return new Response(null, { status: 404 })
   }
 
-  const obj = await client.query(api.storage.getObject as any, {
+  const obj = await client.query(api.storage.getObject, {
     bucketId: bucketDoc._id,
     key,
   })
@@ -299,16 +302,16 @@ export const Route = createFileRoute('/s3/$')({
   server: {
     handlers: {
       PUT: async ({ request, params }) => {
-        return handlePut(request, (params as any)._ ?? '')
+        return handlePut(request, (params as Record<string, string>)._ ?? '')
       },
       GET: async ({ request, params }) => {
-        return handleGet(request, (params as any)._ ?? '')
+        return handleGet(request, (params as Record<string, string>)._ ?? '')
       },
       DELETE: async ({ request, params }) => {
-        return handleDelete(request, (params as any)._ ?? '')
+        return handleDelete(request, (params as Record<string, string>)._ ?? '')
       },
       HEAD: async ({ request, params }) => {
-        return handleHead(request, (params as any)._ ?? '')
+        return handleHead(request, (params as Record<string, string>)._ ?? '')
       },
     },
   },

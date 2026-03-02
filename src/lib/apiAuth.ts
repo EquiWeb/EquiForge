@@ -35,7 +35,7 @@ export async function authenticateApiKey(
   const client = getConvexClient()
 
   // Use the internal query to validate
-  const result = await client.query(api.apiKeys.validateApiKey as any, {
+  const result = await client.query(api.apiKeys.validateApiKey, {
     keyHash,
   })
 

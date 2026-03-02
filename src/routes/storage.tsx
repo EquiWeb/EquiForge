@@ -130,8 +130,9 @@ function BucketList({
                 onClick={(e) => {
                   e.stopPropagation()
                   setError(null)
-                  deleteBucket({ bucketId: b._id }).catch((err: any) => {
-                    setError(err.message ?? 'Failed to delete bucket')
+                  deleteBucket({ bucketId: b._id }).catch((err: unknown) => {
+                    const message = err instanceof Error ? err.message : 'Failed to delete bucket'
+                    setError(message)
                   })
                   if (b._id === selectedBucket) {
                     onSelectBucket(null)
@@ -159,8 +160,9 @@ function BucketList({
               region: fd.get('region') as string || 'us-east-1',
             })
             e.currentTarget.reset()
-          } catch (err: any) {
-            setError(err.message ?? 'Failed to create bucket')
+          } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : 'Failed to create bucket'
+            setError(message)
           } finally {
             setCreating(false)
           }
@@ -218,7 +220,7 @@ function ObjectBrowser({
   }
 
   const filtered = prefix
-    ? objects.objects.filter((o: any) => o.key.startsWith(prefix))
+    ? objects.objects.filter((o) => o.key.startsWith(prefix))
     : objects.objects
 
   return (
@@ -259,7 +261,7 @@ function ObjectBrowser({
             {prefix ? 'No objects match this prefix.' : 'Bucket is empty.'}
           </p>
         ) : (
-          filtered.map((obj: any) => (
+          filtered.map((obj) => (
             <div
               key={obj.key}
               className="flex items-center rounded-lg py-2 text-sm hover:bg-[var(--tint-blue)]"
@@ -282,8 +284,9 @@ function ObjectBrowser({
                   onClick={() => {
                     setError(null)
                     deleteObject({ bucketId, key: obj.key }).catch(
-                      (err: any) => {
-                        setError(err.message ?? 'Failed to delete')
+                      (err: unknown) => {
+                        const message = err instanceof Error ? err.message : 'Failed to delete'
+                        setError(message)
                       },
                     )
                   }}

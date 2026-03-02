@@ -30,7 +30,7 @@ function createMcpServerForUser(auth: ApiKeyAuth) {
       contact: z.string().describe('Contact email'),
     },
     async ({ orgName, contact }) => {
-      const accountId = await client.mutation(api.mcp.apiCreateAccount as any, {
+      const accountId = await client.mutation(api.mcp.apiCreateAccount, {
         userId,
         orgName,
         contact,
@@ -51,7 +51,7 @@ function createMcpServerForUser(auth: ApiKeyAuth) {
     'Check account and service status for the authenticated user',
     {},
     async () => {
-      const account = await client.query(api.mcp.apiGetAccountForUser as any, {
+      const account = await client.query(api.mcp.apiGetAccountForUser, {
         userId,
       })
       if (!account) {
@@ -61,7 +61,7 @@ function createMcpServerForUser(auth: ApiKeyAuth) {
         }
       }
 
-      const services = await client.query(api.mcp.apiListStorageServices as any, {
+      const services = await client.query(api.mcp.apiListStorageServices, {
         userId,
       })
 
@@ -77,7 +77,7 @@ function createMcpServerForUser(auth: ApiKeyAuth) {
                 paymentProfiles: account.paymentProfiles,
                 createdAt: account.createdAt,
               },
-              services: services.map((s: any) => ({
+              services: services.map((s) => ({
                 id: s._id,
                 project: s.project,
                 region: s.region,
@@ -103,9 +103,9 @@ function createMcpServerForUser(auth: ApiKeyAuth) {
       wallet: z.string().describe('Wallet address (e.g. x402://wallet/0x...)'),
     },
     async ({ accountId, profile, wallet }) => {
-      const result = await client.mutation(api.mcp.apiAttachPaymentProfile as any, {
+      const result = await client.mutation(api.mcp.apiAttachPaymentProfile, {
         userId,
-        accountId,
+        accountId: accountId as Id<'accounts'>,
         profile,
         wallet,
       })
@@ -139,9 +139,9 @@ function createMcpServerForUser(auth: ApiKeyAuth) {
       paymentProfile: z.string().describe('Payment profile to use'),
     },
     async ({ accountId, project, region, usageCapGb, paymentProfile }) => {
-      const result = await client.mutation(api.mcp.apiCreateStorageService as any, {
+      const result = await client.mutation(api.mcp.apiCreateStorageService, {
         userId,
-        accountId,
+        accountId: accountId as Id<'accounts'>,
         project,
         region,
         usageCapGb,
@@ -156,8 +156,8 @@ function createMcpServerForUser(auth: ApiKeyAuth) {
       }
 
       // Fetch the created service to return full details
-      const service = await client.query(api.mcp.apiGetStorageService as any, {
-        serviceId: result,
+      const service = await client.query(api.mcp.apiGetStorageService, {
+        serviceId: result as Id<'storageServices'>,
       })
 
       return {
@@ -187,9 +187,9 @@ function createMcpServerForUser(auth: ApiKeyAuth) {
       reason: z.string().optional().describe('Reason for rotation'),
     },
     async ({ serviceId, reason }) => {
-      const result = await client.mutation(api.mcp.apiRotateStorageKeys as any, {
+      const result = await client.mutation(api.mcp.apiRotateStorageKeys, {
         userId,
-        serviceId,
+        serviceId: serviceId as Id<'storageServices'>,
         reason,
       })
 
@@ -200,8 +200,8 @@ function createMcpServerForUser(auth: ApiKeyAuth) {
         }
       }
 
-      const service = await client.query(api.mcp.apiGetStorageService as any, {
-        serviceId,
+      const service = await client.query(api.mcp.apiGetStorageService, {
+        serviceId: serviceId as Id<'storageServices'>,
       })
 
       return {
@@ -235,9 +235,9 @@ function createMcpServerForUser(auth: ApiKeyAuth) {
     },
     async ({ accountId, name, region, isPublic }) => {
       try {
-        const bucketId = await client.mutation(api.storage.apiCreateBucket as any, {
+        const bucketId = await client.mutation(api.storage.apiCreateBucket, {
           userId,
-          accountId,
+          accountId: accountId as Id<'accounts'>,
           name,
           region,
           isPublic,
@@ -250,9 +250,10 @@ function createMcpServerForUser(auth: ApiKeyAuth) {
             },
           ],
         }
-      } catch (err: any) {
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Unknown error'
         return {
-          content: [{ type: 'text' as const, text: JSON.stringify({ error: err.message }) }],
+          content: [{ type: 'text' as const, text: JSON.stringify({ error: message }) }],
           isError: true,
         }
       }
@@ -266,16 +267,16 @@ function createMcpServerForUser(auth: ApiKeyAuth) {
       accountId: z.string().describe('Account ID'),
     },
     async ({ accountId }) => {
-      const buckets = await client.query(api.storage.apiListBuckets as any, {
+      const buckets = await client.query(api.storage.apiListBuckets, {
         userId,
-        accountId,
+        accountId: accountId as Id<'accounts'>,
       })
       return {
         content: [
           {
             type: 'text' as const,
             text: JSON.stringify({
-              buckets: buckets.map((b: any) => ({
+              buckets: buckets.map((b) => ({
                 id: b._id,
                 name: b.name,
                 region: b.region,
@@ -301,7 +302,7 @@ function createMcpServerForUser(auth: ApiKeyAuth) {
       size: z.number().describe('Object size in bytes'),
     },
     async ({ bucketName, key, contentType, size }) => {
-      const bucket = await client.query(api.storage.getBucketByName as any, { name: bucketName })
+      const bucket = await client.query(api.storage.getBucketByName, { name: bucketName })
       if (!bucket) {
         return {
           content: [{ type: 'text' as const, text: JSON.stringify({ error: 'Bucket not found' }) }],
@@ -310,7 +311,7 @@ function createMcpServerForUser(auth: ApiKeyAuth) {
       }
 
       // Generate an upload URL from Convex
-      const uploadUrl = await client.mutation(api.storage.generateUploadUrl as any, {})
+      const uploadUrl = await client.mutation(api.storage.generateUploadUrl, {})
 
       return {
         content: [
@@ -346,11 +347,11 @@ function createMcpServerForUser(auth: ApiKeyAuth) {
     },
     async ({ bucketId, key, storageId, size, contentType, etag }) => {
       try {
-        const objectId = await client.mutation(api.storage.apiPutObject as any, {
+        const objectId = await client.mutation(api.storage.apiPutObject, {
           userId,
-          bucketId,
+          bucketId: bucketId as Id<'storageBuckets'>,
           key,
-          storageId,
+          storageId: storageId as Id<'_storage'>,
           size,
           contentType,
           etag,
@@ -363,9 +364,10 @@ function createMcpServerForUser(auth: ApiKeyAuth) {
             },
           ],
         }
-      } catch (err: any) {
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Unknown error'
         return {
-          content: [{ type: 'text' as const, text: JSON.stringify({ error: err.message }) }],
+          content: [{ type: 'text' as const, text: JSON.stringify({ error: message }) }],
           isError: true,
         }
       }
@@ -380,7 +382,7 @@ function createMcpServerForUser(auth: ApiKeyAuth) {
       key: z.string().describe('Object key'),
     },
     async ({ bucketName, key }) => {
-      const bucket = await client.query(api.storage.getBucketByName as any, { name: bucketName })
+      const bucket = await client.query(api.storage.getBucketByName, { name: bucketName })
       if (!bucket) {
         return {
           content: [{ type: 'text' as const, text: JSON.stringify({ error: 'Bucket not found' }) }],
@@ -388,7 +390,7 @@ function createMcpServerForUser(auth: ApiKeyAuth) {
         }
       }
 
-      const obj = await client.query(api.storage.getObject as any, {
+      const obj = await client.query(api.storage.getObject, {
         bucketId: bucket._id,
         key,
       })
@@ -426,7 +428,7 @@ function createMcpServerForUser(auth: ApiKeyAuth) {
       key: z.string().describe('Object key'),
     },
     async ({ bucketName, key }) => {
-      const bucket = await client.query(api.storage.getBucketByName as any, { name: bucketName })
+      const bucket = await client.query(api.storage.getBucketByName, { name: bucketName })
       if (!bucket) {
         return {
           content: [{ type: 'text' as const, text: JSON.stringify({ error: 'Bucket not found' }) }],
@@ -435,7 +437,7 @@ function createMcpServerForUser(auth: ApiKeyAuth) {
       }
 
       try {
-        await client.mutation(api.storage.apiDeleteObject as any, {
+        await client.mutation(api.storage.apiDeleteObject, {
           userId,
           bucketId: bucket._id,
           key,
@@ -445,9 +447,10 @@ function createMcpServerForUser(auth: ApiKeyAuth) {
             { type: 'text' as const, text: JSON.stringify({ key, status: 'deleted' }) },
           ],
         }
-      } catch (err: any) {
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Unknown error'
         return {
-          content: [{ type: 'text' as const, text: JSON.stringify({ error: err.message }) }],
+          content: [{ type: 'text' as const, text: JSON.stringify({ error: message }) }],
           isError: true,
         }
       }
@@ -463,7 +466,7 @@ function createMcpServerForUser(auth: ApiKeyAuth) {
       maxKeys: z.number().optional().describe('Max results (default 1000)'),
     },
     async ({ bucketName, prefix, maxKeys }) => {
-      const bucket = await client.query(api.storage.getBucketByName as any, { name: bucketName })
+      const bucket = await client.query(api.storage.getBucketByName, { name: bucketName })
       if (!bucket) {
         return {
           content: [{ type: 'text' as const, text: JSON.stringify({ error: 'Bucket not found' }) }],
@@ -471,7 +474,7 @@ function createMcpServerForUser(auth: ApiKeyAuth) {
         }
       }
 
-      const result = await client.query(api.storage.listObjects as any, {
+      const result = await client.query(api.storage.listObjects, {
         bucketId: bucket._id,
         prefix,
         maxKeys,
