@@ -23,6 +23,9 @@
 .tanstack
 .vscode
 bun.lock
+dist
+.env.local
+convex/_generated
 
 # debug
 npm-debug.log*
