@@ -8,6 +8,7 @@
   "scripts": {
     "dev": "vite dev --port 3000",
     "build": "vite build",
+    "vercel-build": "rm -rf .vercel/output && vite build",
     "preview": "vite preview",
     "test": "vitest run"
   },
