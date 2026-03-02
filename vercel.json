@@ -1,4 +1,4 @@
 {
-  "buildCommand": "echo '=== BUILD START ===' && ls -la && echo '=== CHECKING .vercel ===' && ls -la .vercel/ 2>&1 || true && echo '=== RUNNING BUILD ===' && bun run build && echo '=== BUILD DONE ==='",
+  "buildCommand": "bun run vercel-build",
   "installCommand": "bun install"
 }
