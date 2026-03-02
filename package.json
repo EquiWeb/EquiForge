@@ -12,6 +12,9 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@auth/core": "0.37.0",
+    "@convex-dev/auth": "^0.0.91",
+    "@modelcontextprotocol/sdk": "^1.27.1",
     "@tailwindcss/vite": "^4.1.18",
     "@tanstack/react-devtools": "^0.7.0",
     "@tanstack/react-router": "^1.132.0",

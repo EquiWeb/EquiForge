@@ -1,5 +1,6 @@
 import { mutation, query } from './_generated/server'
 import { v } from 'convex/values'
+import { getAuthUserId } from '@convex-dev/auth/server'
 
 function nowIso() {
   return new Date().toISOString()
@@ -9,13 +10,21 @@ function randomKey(prefix: string) {
   return `${prefix}_${crypto.randomUUID().replace(/-/g, '')}`
 }
 
+// --- Account management (requires authenticated user) ---
+
 export const createAccount = mutation({
   args: {
     orgName: v.string(),
     contact: v.string(),
   },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx)
+    if (!userId) {
+      throw new Error('Not authenticated')
+    }
+
     const accountId = await ctx.db.insert('accounts', {
+      userId,
       orgName: args.orgName,
       contact: args.contact,
       createdAt: nowIso(),
@@ -26,6 +35,21 @@ export const createAccount = mutation({
   },
 })
 
+export const getAccountForUser = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx)
+    if (!userId) return null
+
+    const account = await ctx.db
+      .query('accounts')
+      .withIndex('by_user', (q) => q.eq('userId', userId))
+      .first()
+
+    return account
+  },
+})
+
 export const attachPaymentProfile = mutation({
   args: {
     accountId: v.id('accounts'),
@@ -33,9 +57,15 @@ export const attachPaymentProfile = mutation({
     wallet: v.string(),
   },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx)
+    if (!userId) throw new Error('Not authenticated')
+
     const account = await ctx.db.get(args.accountId)
     if (!account) {
       return { error: 'Account not found' as const }
+    }
+    if (account.userId !== userId) {
+      return { error: 'Not authorized' as const }
     }
 
     await ctx.db.insert('paymentProfiles', {
@@ -57,6 +87,8 @@ export const attachPaymentProfile = mutation({
   },
 })
 
+// --- Storage service provisioning ---
+
 export const createStorageService = mutation({
   args: {
     accountId: v.id('accounts'),
@@ -66,9 +98,15 @@ export const createStorageService = mutation({
     paymentProfile: v.string(),
   },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx)
+    if (!userId) throw new Error('Not authenticated')
+
     const account = await ctx.db.get(args.accountId)
     if (!account) {
       return { error: 'Account not found' as const }
+    }
+    if (account.userId !== userId) {
+      return { error: 'Not authorized' as const }
     }
 
     if (!account.paymentProfiles.includes(args.paymentProfile)) {
@@ -103,15 +141,43 @@ export const getStorageService = query({
   },
 })
 
+export const listStorageServices = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx)
+    if (!userId) return []
+
+    const account = await ctx.db
+      .query('accounts')
+      .withIndex('by_user', (q) => q.eq('userId', userId))
+      .first()
+    if (!account) return []
+
+    return await ctx.db
+      .query('storageServices')
+      .withIndex('by_account', (q) => q.eq('accountId', account._id))
+      .collect()
+  },
+})
+
 export const rotateStorageKeys = mutation({
   args: {
     serviceId: v.id('storageServices'),
     reason: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx)
+    if (!userId) throw new Error('Not authenticated')
+
     const service = await ctx.db.get(args.serviceId)
     if (!service) {
       return { error: 'Service not found' as const }
+    }
+
+    // Verify ownership
+    const account = await ctx.db.get(service.accountId)
+    if (!account || account.userId !== userId) {
+      return { error: 'Not authorized' as const }
     }
 
     const updatedAt = nowIso()
