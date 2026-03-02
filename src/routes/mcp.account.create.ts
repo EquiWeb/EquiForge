@@ -1,4 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { createAccount } from '#/lib/mcpStore'
 
 type CreateAccountRequest = {
   orgName: string
@@ -19,11 +20,17 @@ export const Route = createFileRoute('/mcp/account/create')({
           )
         }
 
-        return Response.json({
-          accountId: `acct_${crypto.randomUUID()}`,
-          status: 'created',
+        const account = createAccount({
           orgName: payload.orgName,
           contact: payload.contact,
+        })
+
+        return Response.json({
+          accountId: account.id,
+          status: 'created',
+          orgName: account.orgName,
+          contact: account.contact,
+          createdAt: account.createdAt,
         })
       },
     },

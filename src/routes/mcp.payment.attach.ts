@@ -1,4 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { attachPaymentProfile } from '#/lib/mcpStore'
 
 type AttachPaymentRequest = {
   accountId: string
@@ -20,10 +21,26 @@ export const Route = createFileRoute('/mcp/payment/attach')({
           )
         }
 
-        return Response.json({
-          status: 'attached',
+        const attached = attachPaymentProfile({
           accountId: payload.accountId,
           profile: payload.profile,
+          wallet: payload.wallet,
+        })
+
+        if (!attached) {
+          return Response.json(
+            {
+              error: 'Account not found',
+            },
+            { status: 404 },
+          )
+        }
+
+        return Response.json({
+          status: 'attached',
+          accountId: attached.accountId,
+          profile: attached.profile,
+          wallet: attached.wallet,
         })
       },
     },

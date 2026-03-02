@@ -1,4 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { rotateStorageKeys } from '#/lib/mcpStore'
 
 type RotateKeysRequest = {
   serviceId: string
@@ -19,10 +20,23 @@ export const Route = createFileRoute('/mcp/keys/rotate')({
           )
         }
 
+        const result = rotateStorageKeys(payload.serviceId, payload.reason)
+        if (!result) {
+          return Response.json(
+            {
+              error: 'Service not found',
+            },
+            { status: 404 },
+          )
+        }
+
         return Response.json({
-          serviceId: payload.serviceId,
-          status: 'rotation_queued',
-          rotatedAt: new Date().toISOString(),
+          serviceId: result.service.id,
+          status: 'rotated',
+          accessKeyId: result.service.accessKeyId,
+          secretAccessKey: result.service.secretAccessKey,
+          rotatedAt: result.service.updatedAt,
+          reason: result.reason,
         })
       },
     },

@@ -21,11 +21,33 @@ export const Route = createRootRoute({
         {
           title: 'EquiForge',
         },
+        {
+          name: 'description',
+          content:
+            'EquiForge is a x402-powered cloud services hub for agents, starting with S3-compatible storage and expanding into compute.',
+        },
+        {
+          property: 'og:title',
+          content: 'EquiForge',
+        },
+        {
+          property: 'og:description',
+          content:
+            'EquiForge is a x402-powered cloud services hub for agents, starting with S3-compatible storage and expanding into compute.',
+        },
     ],
     links: [
       {
         rel: 'stylesheet',
         href: appCss,
+      },
+      {
+        rel: 'icon',
+        href: '/favicon.ico',
+      },
+      {
+        rel: 'manifest',
+        href: '/manifest.json',
       },
     ],
   }),

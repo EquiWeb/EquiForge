@@ -1,6 +1,18 @@
 import { createFileRoute } from '@tanstack/react-router'
 
-export const Route = createFileRoute('/')({ component: App })
+export const Route = createFileRoute('/')({
+  head: () => ({
+    meta: [
+      { title: 'EquiForge — Agent-ready cloud services' },
+      {
+        name: 'description',
+        content:
+          'x402-powered cloud services for agents. Start with S3-compatible storage and expand into on-demand compute.',
+      },
+    ],
+  }),
+  component: App,
+})
 
 function App() {
   return (

@@ -1,4 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { getStorageService } from '#/lib/mcpStore'
 
 export const Route = createFileRoute('/mcp/service/status')({
   server: {
@@ -15,10 +16,25 @@ export const Route = createFileRoute('/mcp/service/status')({
           )
         }
 
+        const service = getStorageService(serviceId)
+        if (!service) {
+          return Response.json(
+            {
+              error: 'Service not found',
+            },
+            { status: 404 },
+          )
+        }
+
         return Response.json({
-          serviceId,
-          status: 'provisioning',
-          updatedAt: new Date().toISOString(),
+          serviceId: service.id,
+          status: service.status,
+          region: service.region,
+          project: service.project,
+          usageCapGb: service.usageCapGb,
+          endpoint: service.endpoint,
+          accessKeyId: service.accessKeyId,
+          updatedAt: service.updatedAt,
         })
       },
     },
