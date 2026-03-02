@@ -18,6 +18,11 @@
 # misc
 .DS_Store
 *.pem
+.content-collections
+.cta.json
+.tanstack
+.vscode
+bun.lock
 
 # debug
 npm-debug.log*
