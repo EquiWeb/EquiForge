@@ -16,9 +16,18 @@ type LogEntry = {
   timestamp: number
 }
 
+// Static option sets
+const REGIONS = ['us-east-1', 'us-west-2', 'eu-west-1', 'eu-central-1', 'ap-southeast-1', 'ap-northeast-1']
+const CONTENT_TYPES = ['text/plain', 'application/json', 'application/octet-stream', 'text/html', 'text/csv', 'image/png', 'image/jpeg', 'application/pdf']
+
 export const Route = createFileRoute('/demo')({
   component: DemoConsole,
 })
+
+/** Deduplicated push — returns new array only if item is actually new */
+function addUnique(arr: string[], item: string): string[] {
+  return arr.includes(item) ? arr : [...arr, item]
+}
 
 function DemoConsole() {
   const [apiKey, setApiKey] = useState('')
@@ -29,6 +38,11 @@ function DemoConsole() {
   const [busy, setBusy] = useState(false)
   const reqIdRef = useRef(1)
   const logIdRef = useRef(1)
+
+  // Discovered IDs from API responses
+  const [knownAccounts, setKnownAccounts] = useState<string[]>([])
+  const [knownServices, setKnownServices] = useState<string[]>([])
+  const [knownBuckets, setKnownBuckets] = useState<string[]>([])
 
   // Editable default values
   const [orgName, setOrgName] = useState('Forge Labs')
@@ -41,6 +55,41 @@ function DemoConsole() {
   const [objectKey, setObjectKey] = useState('hello.txt')
   const [objectContent, setObjectContent] = useState('Hello from EquiForge!')
   const [objectContentType, setObjectContentType] = useState('text/plain')
+
+  /** Scan a parsed tool response for known ID shapes and track them */
+  const harvestIds = useCallback((data: unknown) => {
+    if (!data || typeof data !== 'object') return
+    const obj = data as Record<string, unknown>
+
+    // Single IDs
+    if (typeof obj.accountId === 'string') setKnownAccounts((p) => addUnique(p, obj.accountId as string))
+    if (typeof obj.serviceId === 'string') setKnownServices((p) => addUnique(p, obj.serviceId as string))
+
+    // Bucket name from create_bucket / list_objects
+    if (typeof obj.name === 'string' && (obj.region || obj.isPublic !== undefined))
+      setKnownBuckets((p) => addUnique(p, obj.name as string))
+    if (typeof obj.bucketName === 'string') setKnownBuckets((p) => addUnique(p, obj.bucketName as string))
+
+    // check_status returns account + services array
+    if (typeof obj.account === 'object' && obj.account) {
+      const acct = obj.account as Record<string, unknown>
+      if (typeof acct.accountId === 'string') setKnownAccounts((p) => addUnique(p, acct.accountId as string))
+    }
+    if (Array.isArray(obj.services)) {
+      for (const svc of obj.services) {
+        if (svc && typeof svc === 'object' && typeof (svc as Record<string, unknown>).serviceId === 'string')
+          setKnownServices((p) => addUnique(p, (svc as Record<string, unknown>).serviceId as string))
+      }
+    }
+
+    // list_buckets returns array
+    if (Array.isArray(obj.buckets)) {
+      for (const b of obj.buckets) {
+        if (b && typeof b === 'object' && typeof (b as Record<string, unknown>).name === 'string')
+          setKnownBuckets((p) => addUnique(p, (b as Record<string, unknown>).name as string))
+      }
+    }
+  }, [])
 
   const callTool = useCallback(
     async (tool: string, args: Record<string, unknown> = {}) => {
@@ -95,7 +144,9 @@ function DemoConsole() {
           const result = data.result as { content?: Array<{ type: string; text: string }> }
           if (result.content?.[0]?.text) {
             try {
-              return JSON.parse(result.content[0].text)
+              const parsed = JSON.parse(result.content[0].text)
+              harvestIds(parsed)
+              return parsed
             } catch {
               return result.content[0].text
             }
@@ -121,7 +172,7 @@ function DemoConsole() {
         setBusy(false)
       }
     },
-    [apiKey],
+    [apiKey, harvestIds],
   )
 
   // S3 endpoint helper for direct HTTP operations
@@ -314,7 +365,7 @@ function DemoConsole() {
           </p>
           <div className="mb-3 grid grid-cols-2 gap-2">
             <EditableField label="Project" value={project} onChange={setProject} />
-            <EditableField label="Region" value={region} onChange={setRegion} />
+            <SelectField label="Region" value={region} onChange={setRegion} options={REGIONS} />
           </div>
           <div className="grid gap-3">
             <ToolButton
@@ -388,7 +439,7 @@ function DemoConsole() {
           <div className="mb-3 grid gap-2">
             <div className="grid grid-cols-2 gap-2">
               <EditableField label="Object key" value={objectKey} onChange={setObjectKey} />
-              <EditableField label="Content-Type" value={objectContentType} onChange={setObjectContentType} />
+              <SelectField label="Content-Type" value={objectContentType} onChange={setObjectContentType} options={CONTENT_TYPES} allowCustom />
             </div>
             <EditableField label="Content body" value={objectContent} onChange={setObjectContent} />
           </div>
@@ -487,11 +538,34 @@ function DemoConsole() {
 
           <div className="mt-4 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3 text-xs text-[var(--sea-ink-soft)]">
             <p className="m-0 font-semibold text-[var(--sea-ink)]">
-              Captured IDs
+              Active IDs
             </p>
-            <p className="m-0 mt-1">Account: {accountId || '\u2014'}</p>
-            <p className="m-0">Service: {serviceId || '\u2014'}</p>
-            <p className="m-0">Bucket: {bucketName || '\u2014'}</p>
+            <div className="mt-2 grid gap-2">
+              <SelectField
+                label="Account"
+                value={accountId}
+                onChange={setAccountId}
+                options={knownAccounts}
+                placeholder="Run create_account or check_status"
+                allowCustom
+              />
+              <SelectField
+                label="Service"
+                value={serviceId}
+                onChange={setServiceId}
+                options={knownServices}
+                placeholder="Run provision_storage or check_status"
+                allowCustom
+              />
+              <SelectField
+                label="Bucket"
+                value={bucketName}
+                onChange={setBucketName}
+                options={knownBuckets}
+                placeholder="Run create_bucket or list_buckets"
+                allowCustom
+              />
+            </div>
           </div>
         </article>
       </section>
@@ -524,6 +598,94 @@ function EditableField({
         placeholder={placeholder}
         className="w-full rounded-lg border border-[var(--line)] bg-[var(--surface-strong)] px-2.5 py-1.5 text-xs text-[var(--sea-ink)] outline-none focus:border-[var(--lagoon)]"
       />
+    </div>
+  )
+}
+
+function SelectField({
+  label,
+  value,
+  onChange,
+  options,
+  placeholder,
+  allowCustom,
+}: {
+  label: string
+  value: string
+  onChange: (v: string) => void
+  options: string[]
+  placeholder?: string
+  allowCustom?: boolean
+}) {
+  const [customMode, setCustomMode] = useState(false)
+  const isCustomValue = value !== '' && !options.includes(value)
+
+  // Show custom input when in custom mode, or when the current value isn't in options
+  const showCustom = customMode || (allowCustom && isCustomValue)
+
+  if (showCustom) {
+    return (
+      <div>
+        <label className="mb-0.5 block text-[10px] uppercase tracking-wider text-[var(--sea-ink-soft)]">
+          {label}
+        </label>
+        <div className="flex gap-1">
+          <input
+            type="text"
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder={placeholder || `Custom ${label.toLowerCase()}`}
+            className="min-w-0 flex-1 rounded-lg border border-[var(--line)] bg-[var(--surface-strong)] px-2.5 py-1.5 text-xs text-[var(--sea-ink)] outline-none focus:border-[var(--lagoon)]"
+          />
+          {options.length > 0 && (
+            <button
+              type="button"
+              onClick={() => { setCustomMode(false); if (!options.includes(value)) onChange(options[0]) }}
+              className="shrink-0 rounded-lg border border-[var(--line)] bg-[var(--surface-strong)] px-2 py-1.5 text-[10px] text-[var(--sea-ink-soft)] hover:text-[var(--sea-ink)]"
+              title="Switch to dropdown"
+            >
+              list
+            </button>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div>
+      <label className="mb-0.5 block text-[10px] uppercase tracking-wider text-[var(--sea-ink-soft)]">
+        {label}
+      </label>
+      <div className="flex gap-1">
+        <select
+          value={options.includes(value) ? value : ''}
+          onChange={(e) => {
+            const v = e.target.value
+            if (v === '__custom__') {
+              setCustomMode(true)
+              onChange('')
+            } else {
+              onChange(v)
+            }
+          }}
+          className="min-w-0 flex-1 appearance-none rounded-lg border border-[var(--line)] bg-[var(--surface-strong)] px-2.5 py-1.5 text-xs text-[var(--sea-ink)] outline-none focus:border-[var(--lagoon)]"
+        >
+          {options.length === 0 && (
+            <option value="" disabled>
+              {placeholder || 'No options yet'}
+            </option>
+          )}
+          {options.map((opt) => (
+            <option key={opt} value={opt}>
+              {opt}
+            </option>
+          ))}
+          {allowCustom && (
+            <option value="__custom__">Custom...</option>
+          )}
+        </select>
+      </div>
     </div>
   )
 }
