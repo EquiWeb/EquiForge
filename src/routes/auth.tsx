@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useAuthActions } from '@convex-dev/auth/react'
 import { useConvexAuth } from 'convex/react'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 export const Route = createFileRoute('/auth')({
   component: Auth,
@@ -11,17 +11,18 @@ function Auth() {
   const { isAuthenticated, isLoading } = useConvexAuth()
   const navigate = useNavigate()
 
-  if (isLoading) {
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate({ to: '/dashboard' })
+    }
+  }, [isAuthenticated, navigate])
+
+  if (isLoading || isAuthenticated) {
     return (
       <main className="page-wrap px-4 pb-10 pt-8">
         <p className="text-sm text-[var(--sea-ink-soft)]">Loading...</p>
       </main>
     )
-  }
-
-  if (isAuthenticated) {
-    navigate({ to: '/dashboard' })
-    return null
   }
 
   return (
