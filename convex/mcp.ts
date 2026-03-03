@@ -164,10 +164,13 @@ export const listStorageServices = query({
       .first()
     if (!account) return []
 
-    return await ctx.db
+    const services = await ctx.db
       .query('storageServices')
       .withIndex('by_account', (q) => q.eq('accountId', account._id))
       .collect()
+
+    // Strip secretAccessKey from web-facing response
+    return services.map(({ secretAccessKey: _secret, ...safe }) => safe)
   },
 })
 

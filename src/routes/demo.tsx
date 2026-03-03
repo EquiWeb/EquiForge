@@ -30,6 +30,18 @@ function DemoConsole() {
   const reqIdRef = useRef(1)
   const logIdRef = useRef(1)
 
+  // Editable default values
+  const [orgName, setOrgName] = useState('Forge Labs')
+  const [contact, setContact] = useState('ops@forgelabs.ai')
+  const [paymentProfile, setPaymentProfile] = useState('x402-default')
+  const [wallet, setWallet] = useState('x402://wallet/demo')
+  const [project, setProject] = useState('agent-lab')
+  const [region, setRegion] = useState('us-east-1')
+  const [newBucketName, setNewBucketName] = useState('')
+  const [objectKey, setObjectKey] = useState('hello.txt')
+  const [objectContent, setObjectContent] = useState('Hello from EquiForge!')
+  const [objectContentType, setObjectContentType] = useState('text/plain')
+
   const callTool = useCallback(
     async (tool: string, args: Record<string, unknown> = {}) => {
       if (!apiKey) return null
@@ -59,6 +71,7 @@ function DemoConsole() {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            Accept: 'application/json, text/event-stream',
             Authorization: `Bearer ${apiKey}`,
           },
           body: JSON.stringify(body),
@@ -111,6 +124,83 @@ function DemoConsole() {
     [apiKey],
   )
 
+  // S3 endpoint helper for direct HTTP operations
+  const callS3 = useCallback(
+    async (method: string, path: string, body?: string, contentType?: string) => {
+      if (!apiKey) return null
+      setBusy(true)
+
+      const tool = `S3 ${method} ${path}`
+
+      setLog((prev) => [
+        {
+          id: logIdRef.current++,
+          direction: 'request',
+          tool,
+          payload: { method, path, body: body ? `${body.slice(0, 100)}${body.length > 100 ? '...' : ''}` : null },
+          timestamp: Date.now(),
+        },
+        ...prev,
+      ])
+
+      try {
+        const headers: Record<string, string> = {
+          Authorization: `Bearer ${apiKey}`,
+        }
+        if (contentType) headers['Content-Type'] = contentType
+
+        const res = await fetch(`/s3/${path}`, {
+          method,
+          headers,
+          body: body ?? undefined,
+        })
+
+        const resContentType = res.headers.get('Content-Type') ?? ''
+        let payload: unknown
+        if (resContentType.includes('xml')) {
+          payload = { status: res.status, body: await res.text() }
+        } else if (resContentType.includes('json')) {
+          payload = { status: res.status, body: await res.json() }
+        } else if (res.status === 302) {
+          payload = { status: res.status, location: res.headers.get('Location') }
+        } else {
+          const text = await res.text()
+          payload = { status: res.status, body: text || '(empty)', etag: res.headers.get('ETag'), contentType: res.headers.get('Content-Type'), contentLength: res.headers.get('Content-Length') }
+        }
+
+        setLog((prev) => [
+          {
+            id: logIdRef.current++,
+            direction: 'response',
+            tool,
+            payload,
+            timestamp: Date.now(),
+          },
+          ...prev,
+        ])
+
+        return payload
+      } catch (err) {
+        setLog((prev) => [
+          {
+            id: logIdRef.current++,
+            direction: 'response',
+            tool,
+            payload: {
+              error: err instanceof Error ? err.message : 'Network error',
+            },
+            timestamp: Date.now(),
+          },
+          ...prev,
+        ])
+        return null
+      } finally {
+        setBusy(false)
+      }
+    },
+    [apiKey],
+  )
+
   const disabled = busy || !apiKey
 
   return (
@@ -124,13 +214,20 @@ function DemoConsole() {
           Use this panel to exercise the MCP JSON-RPC 2.0 endpoint at{' '}
           <code className="rounded bg-[var(--surface-strong)] px-1.5 py-0.5 text-sm">
             POST /api/mcp
+          </code>{' '}
+          and the S3-compatible endpoints at{' '}
+          <code className="rounded bg-[var(--surface-strong)] px-1.5 py-0.5 text-sm">
+            /s3/...
           </code>
-          . Every button sends a <code>tools/call</code> request with your API
-          key. Create a key in the{' '}
+          . Every button sends a request with your API key. Create a key in the{' '}
           <a href="/dashboard" className="underline">
             Dashboard
           </a>{' '}
-          first.
+          first. See the{' '}
+          <a href="/mcp" className="underline">
+            API docs
+          </a>{' '}
+          for details.
         </p>
       </section>
 
@@ -152,7 +249,7 @@ function DemoConsole() {
         />
         {!apiKey && (
           <p className="mt-1 text-xs text-[var(--sea-ink-soft)]">
-            Paste an API key with <strong>mcp</strong> scope to enable actions.
+            Paste an API key to enable actions.
           </p>
         )}
       </section>
@@ -168,152 +265,171 @@ function DemoConsole() {
           <p className="mb-2 mt-4 text-xs font-semibold uppercase tracking-wider text-[var(--sea-ink-soft)]">
             Account
           </p>
+          <div className="mb-3 grid grid-cols-2 gap-2">
+            <EditableField label="Org name" value={orgName} onChange={setOrgName} />
+            <EditableField label="Contact" value={contact} onChange={setContact} />
+          </div>
           <div className="grid gap-3">
-            <button
-              type="button"
+            <ToolButton
               disabled={disabled}
+              color="blue"
+              name="create_account"
+              detail={`orgName="${orgName}"`}
               onClick={async () => {
-                const data = await callTool('create_account', {
-                  orgName: 'Forge Labs',
-                  contact: 'ops@forgelabs.ai',
-                })
+                const data = await callTool('create_account', { orgName, contact })
                 if (data?.accountId) setAccountId(data.accountId)
               }}
-              className="rounded-2xl border border-[var(--line)] bg-[var(--tint-blue)] px-4 py-3 text-left text-sm font-semibold text-[var(--sea-ink)] disabled:opacity-40"
-            >
-              create_account
-              <span className="ml-2 text-xs font-normal text-[var(--sea-ink-soft)]">
-                orgName=&quot;Forge Labs&quot;
-              </span>
-            </button>
-
-            <button
-              type="button"
+            />
+            <ToolButton
               disabled={disabled}
-              onClick={async () => {
-                await callTool('check_status', {})
-              }}
-              className="rounded-2xl border border-[var(--line)] bg-[var(--tint-amber)] px-4 py-3 text-left text-sm font-semibold text-[var(--sea-ink)] disabled:opacity-40"
-            >
-              check_status
-            </button>
+              color="amber"
+              name="check_status"
+              onClick={() => callTool('check_status', {})}
+            />
           </div>
 
           {/* --- Payment --- */}
           <p className="mb-2 mt-5 text-xs font-semibold uppercase tracking-wider text-[var(--sea-ink-soft)]">
             Payment
           </p>
+          <div className="mb-3 grid grid-cols-2 gap-2">
+            <EditableField label="Profile" value={paymentProfile} onChange={setPaymentProfile} />
+            <EditableField label="Wallet" value={wallet} onChange={setWallet} />
+          </div>
           <div className="grid gap-3">
-            <button
-              type="button"
+            <ToolButton
               disabled={disabled || !accountId}
+              color="amber"
+              name="attach_payment"
+              detail={`profile="${paymentProfile}"`}
               onClick={() =>
-                callTool('attach_payment', {
-                  accountId,
-                  profile: 'x402-default',
-                  wallet: 'x402://wallet/demo',
-                })
+                callTool('attach_payment', { accountId, profile: paymentProfile, wallet })
               }
-              className="rounded-2xl border border-[var(--line)] bg-[var(--tint-amber)] px-4 py-3 text-left text-sm font-semibold text-[var(--sea-ink)] disabled:opacity-40"
-            >
-              attach_payment
-              <span className="ml-2 text-xs font-normal text-[var(--sea-ink-soft)]">
-                profile=&quot;x402-default&quot;
-              </span>
-            </button>
+            />
           </div>
 
           {/* --- Storage --- */}
           <p className="mb-2 mt-5 text-xs font-semibold uppercase tracking-wider text-[var(--sea-ink-soft)]">
             Storage
           </p>
+          <div className="mb-3 grid grid-cols-2 gap-2">
+            <EditableField label="Project" value={project} onChange={setProject} />
+            <EditableField label="Region" value={region} onChange={setRegion} />
+          </div>
           <div className="grid gap-3">
-            <button
-              type="button"
+            <ToolButton
               disabled={disabled || !accountId}
+              color="blue"
+              name="provision_storage"
+              detail={`project="${project}"`}
               onClick={async () => {
                 const data = await callTool('provision_storage', {
                   accountId,
-                  project: 'agent-lab',
-                  region: 'us-east-1',
+                  project,
+                  region,
                   usageCapGb: 2048,
-                  paymentProfile: 'x402-default',
+                  paymentProfile,
                 })
                 if (data?.serviceId) setServiceId(data.serviceId)
               }}
-              className="rounded-2xl border border-[var(--line)] bg-[var(--tint-blue)] px-4 py-3 text-left text-sm font-semibold text-[var(--sea-ink)] disabled:opacity-40"
-            >
-              provision_storage
-              <span className="ml-2 text-xs font-normal text-[var(--sea-ink-soft)]">
-                region=&quot;us-east-1&quot;
-              </span>
-            </button>
-
-            <button
-              type="button"
+            />
+            <ToolButton
               disabled={disabled || !serviceId}
-              onClick={() =>
-                callTool('rotate_keys', {
-                  serviceId,
-                  reason: 'demo rotation',
-                })
-              }
-              className="rounded-2xl border border-[var(--line)] bg-[var(--tint-amber)] px-4 py-3 text-left text-sm font-semibold text-[var(--sea-ink)] disabled:opacity-40"
-            >
-              rotate_keys
-              <span className="ml-2 text-xs font-normal text-[var(--sea-ink-soft)]">
-                reason=&quot;demo rotation&quot;
-              </span>
-            </button>
+              color="amber"
+              name="rotate_keys"
+              detail="reason='demo rotation'"
+              onClick={() => callTool('rotate_keys', { serviceId, reason: 'demo rotation' })}
+            />
           </div>
 
           {/* --- Buckets --- */}
           <p className="mb-2 mt-5 text-xs font-semibold uppercase tracking-wider text-[var(--sea-ink-soft)]">
             Buckets
           </p>
+          <div className="mb-3 grid grid-cols-1 gap-2">
+            <EditableField
+              label="Bucket name"
+              value={newBucketName}
+              onChange={setNewBucketName}
+              placeholder={`demo-${Date.now().toString(36).slice(0, 6)}`}
+            />
+          </div>
           <div className="grid gap-3">
-            <button
-              type="button"
+            <ToolButton
               disabled={disabled || !accountId}
+              color="blue"
+              name="create_bucket"
+              detail={`name="${newBucketName || 'auto'}"`}
               onClick={async () => {
-                const name = `demo-${Date.now().toString(36)}`
-                const data = await callTool('create_bucket', {
-                  accountId,
-                  name,
-                  region: 'us-east-1',
-                })
+                const name = newBucketName || `demo-${Date.now().toString(36)}`
+                const data = await callTool('create_bucket', { accountId, name, region })
                 if (data?.name) setBucketName(data.name)
               }}
-              className="rounded-2xl border border-[var(--line)] bg-[var(--tint-blue)] px-4 py-3 text-left text-sm font-semibold text-[var(--sea-ink)] disabled:opacity-40"
-            >
-              create_bucket
-              <span className="ml-2 text-xs font-normal text-[var(--sea-ink-soft)]">
-                auto-named
-              </span>
-            </button>
-
-            <button
-              type="button"
+            />
+            <ToolButton
               disabled={disabled || !accountId}
+              color="amber"
+              name="list_buckets"
               onClick={() => callTool('list_buckets', { accountId })}
-              className="rounded-2xl border border-[var(--line)] bg-[var(--tint-amber)] px-4 py-3 text-left text-sm font-semibold text-[var(--sea-ink)] disabled:opacity-40"
-            >
-              list_buckets
-            </button>
-
-            <button
-              type="button"
+            />
+            <ToolButton
               disabled={disabled || !bucketName}
+              color="amber"
+              name="list_objects"
+              detail={`bucket="${bucketName || '...'}"`}
+              onClick={() => callTool('list_objects', { bucketName, prefix: '' })}
+            />
+          </div>
+
+          {/* --- Objects (S3 API) --- */}
+          <p className="mb-2 mt-5 text-xs font-semibold uppercase tracking-wider text-[var(--sea-ink-soft)]">
+            Objects (via S3 API)
+          </p>
+          <div className="mb-3 grid gap-2">
+            <div className="grid grid-cols-2 gap-2">
+              <EditableField label="Object key" value={objectKey} onChange={setObjectKey} />
+              <EditableField label="Content-Type" value={objectContentType} onChange={setObjectContentType} />
+            </div>
+            <EditableField label="Content body" value={objectContent} onChange={setObjectContent} />
+          </div>
+          <div className="grid gap-3">
+            <ToolButton
+              disabled={disabled || !bucketName || !objectKey}
+              color="blue"
+              name="PUT object"
+              detail={`${bucketName}/${objectKey}`}
               onClick={() =>
-                callTool('list_objects', { bucketName, prefix: '' })
+                callS3('PUT', `${bucketName}/${objectKey}`, objectContent, objectContentType)
               }
-              className="rounded-2xl border border-[var(--line)] bg-[var(--tint-amber)] px-4 py-3 text-left text-sm font-semibold text-[var(--sea-ink)] disabled:opacity-40"
-            >
-              list_objects
-              <span className="ml-2 text-xs font-normal text-[var(--sea-ink-soft)]">
-                bucket=&quot;{bucketName || '...'}&quot;
-              </span>
-            </button>
+            />
+            <ToolButton
+              disabled={disabled || !bucketName || !objectKey}
+              color="amber"
+              name="GET object"
+              detail={`${bucketName}/${objectKey}`}
+              onClick={() => callS3('GET', `${bucketName}/${objectKey}`)}
+            />
+            <ToolButton
+              disabled={disabled || !bucketName || !objectKey}
+              color="amber"
+              name="HEAD object"
+              detail={`${bucketName}/${objectKey}`}
+              onClick={() => callS3('HEAD', `${bucketName}/${objectKey}`)}
+            />
+            <ToolButton
+              disabled={disabled || !bucketName || !objectKey}
+              color="red"
+              name="DELETE object"
+              detail={`${bucketName}/${objectKey}`}
+              onClick={() => callS3('DELETE', `${bucketName}/${objectKey}`)}
+            />
+            <ToolButton
+              disabled={disabled || !bucketName}
+              color="amber"
+              name="LIST bucket"
+              detail={`/s3/${bucketName}`}
+              onClick={() => callS3('GET', bucketName)}
+            />
           </div>
         </article>
 
@@ -321,7 +437,7 @@ function DemoConsole() {
         <article className="band-shell rounded-2xl p-6">
           <div className="flex items-center justify-between">
             <h2 className="m-0 text-lg font-semibold text-[var(--sea-ink)]">
-              JSON-RPC Log
+              Request Log
             </h2>
             {log.length > 0 && (
               <button
@@ -380,5 +496,71 @@ function DemoConsole() {
         </article>
       </section>
     </main>
+  )
+}
+
+// --- Shared UI components ---
+
+function EditableField({
+  label,
+  value,
+  onChange,
+  placeholder,
+}: {
+  label: string
+  value: string
+  onChange: (v: string) => void
+  placeholder?: string
+}) {
+  return (
+    <div>
+      <label className="mb-0.5 block text-[10px] uppercase tracking-wider text-[var(--sea-ink-soft)]">
+        {label}
+      </label>
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="w-full rounded-lg border border-[var(--line)] bg-[var(--surface-strong)] px-2.5 py-1.5 text-xs text-[var(--sea-ink)] outline-none focus:border-[var(--lagoon)]"
+      />
+    </div>
+  )
+}
+
+function ToolButton({
+  disabled,
+  color,
+  name,
+  detail,
+  onClick,
+}: {
+  disabled: boolean
+  color: 'blue' | 'amber' | 'red'
+  name: string
+  detail?: string
+  onClick: () => void
+}) {
+  const colorClass =
+    color === 'red'
+      ? 'bg-red-50 dark:bg-red-950 border-red-200 dark:border-red-800'
+      : color === 'blue'
+        ? 'bg-[var(--tint-blue)] border-[var(--line)]'
+        : 'bg-[var(--tint-amber)] border-[var(--line)]'
+
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      className={`rounded-2xl border px-4 py-3 text-left text-sm font-semibold text-[var(--sea-ink)] disabled:opacity-40 ${colorClass}`}
+    >
+      {name}
+      {detail && (
+        <span className="ml-2 text-xs font-normal text-[var(--sea-ink-soft)]">
+          {detail}
+        </span>
+      )}
+    </button>
   )
 }

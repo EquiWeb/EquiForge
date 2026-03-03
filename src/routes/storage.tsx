@@ -209,20 +209,27 @@ function ObjectBrowser({
   bucketId: Id<'storageBuckets'>
   onClose: () => void
 }) {
+  const [prefix, setPrefix] = useState('')
+  const [debouncedPrefix, setDebouncedPrefix] = useState('')
+  const [error, setError] = useState<string | null>(null)
+
+  // Debounce prefix to avoid spamming queries on every keystroke
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedPrefix(prefix), 300)
+    return () => clearTimeout(timer)
+  }, [prefix])
+
   const objects = useQuery(api.storage.webListObjects, {
     bucketId,
+    prefix: debouncedPrefix || undefined,
   })
   const deleteObject = useMutation(api.storage.deleteObject)
-  const [prefix, setPrefix] = useState('')
-  const [error, setError] = useState<string | null>(null)
 
   if (objects === undefined) {
     return <SectionShell title="Objects" loading />
   }
 
-  const filtered = prefix
-    ? objects.objects.filter((o) => o.key.startsWith(prefix))
-    : objects.objects
+  const filtered = objects.objects
 
   return (
     <SectionShell title="Objects">

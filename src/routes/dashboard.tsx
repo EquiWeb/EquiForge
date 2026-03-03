@@ -151,6 +151,7 @@ function ApiKeysSection() {
   const revokeKey = useMutation(api.apiKeys.revokeApiKey)
   const [newKey, setNewKey] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   if (keys === undefined) {
     return <SectionShell title="API Keys" loading />
@@ -162,6 +163,12 @@ function ApiKeysSection() {
         API keys authenticate agents and MCP clients. Keys are shown only once on
         creation.
       </p>
+
+      {error && (
+        <div className="mb-3 rounded-xl border border-red-300 bg-red-50 p-2 text-xs text-red-700 dark:border-red-700 dark:bg-red-950 dark:text-red-300">
+          {error}
+        </div>
+      )}
 
       {newKey && (
         <div className="mb-3 rounded-xl border border-green-300 bg-green-50 p-3 dark:border-green-700 dark:bg-green-950">
@@ -209,7 +216,11 @@ function ApiKeysSection() {
                 type="button"
                 onClick={() => {
                   if (!window.confirm(`Revoke API key "${k.name}" (${k.prefix}...)? This cannot be undone.`)) return
-                  revokeKey({ keyId: k._id })
+                  setError(null)
+                  revokeKey({ keyId: k._id }).catch((err: unknown) => {
+                    const message = err instanceof Error ? err.message : 'Failed to revoke key'
+                    setError(message)
+                  })
                 }}
                 className="rounded-lg border border-red-300 px-2 py-1 text-xs font-semibold text-red-600 transition hover:bg-red-50 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-950"
               >
