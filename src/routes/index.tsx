@@ -46,7 +46,7 @@ function App() {
               </a>
               <a
                 href="/blog"
-                className="rounded-full border border-[rgba(43,42,42,0.45)] bg-[rgba(255,255,255,0.92)] px-5 py-2.5 text-sm font-semibold text-[#1a1a1a] no-underline transition hover:-translate-y-0.5 hover:border-[rgba(43,42,42,0.6)] hover:bg-[rgba(255,255,255,1)] dark:border-[rgba(245,242,242,0.28)] dark:bg-[rgba(17,17,17,0.7)] dark:text-[var(--sea-ink)] dark:hover:border-[rgba(245,242,242,0.5)]"
+                className="rounded-full border border-[rgba(43,42,42,0.45)] bg-[rgba(255,255,255,0.92)] px-5 py-2.5 text-sm font-semibold text-[#1a1a1a] no-underline transition hover:-translate-y-0.5 hover:border-[rgba(43,42,42,0.6)] hover:bg-white dark:border-[rgba(245,242,242,0.28)] dark:bg-[rgba(17,17,17,0.7)] dark:text-[var(--sea-ink)] dark:hover:border-[rgba(245,242,242,0.5)]"
               >
                 Read the Blog
               </a>

@@ -135,14 +135,14 @@ body::after {
   mask-image: radial-gradient(circle at 50% 30%, black, transparent 78%);
 }
 
-a {
+a:where(:not(.nav-link, [class*="no-underline"], [class*="rounded"])) {
   color: var(--lagoon-deep);
   text-decoration-color: color-mix(in oklab, var(--lagoon) 45%, transparent);
   text-decoration-thickness: 1px;
   text-underline-offset: 2px;
 }
 
-a:hover {
+a:where(:not(.nav-link, [class*="no-underline"], [class*="rounded"])):hover {
   color: #3e59b8;
 }
 
