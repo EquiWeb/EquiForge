@@ -12,10 +12,11 @@ function Auth() {
   const navigate = useNavigate()
 
   useEffect(() => {
+    console.log('[EquiForge Auth] state:', { isAuthenticated, isLoading })
     if (isAuthenticated) {
       navigate({ to: '/dashboard' })
     }
-  }, [isAuthenticated, navigate])
+  }, [isAuthenticated, isLoading, navigate])
 
   if (isLoading || isAuthenticated) {
     return (
@@ -60,8 +61,10 @@ function AuthForm() {
     formData.append('flow', flow)
 
     try {
-      await signIn('password', formData)
+      const result = await signIn('password', formData)
+      console.log('[EquiForge Auth] signIn result:', JSON.stringify(result))
     } catch (err: any) {
+      console.error('[EquiForge Auth] signIn error:', err)
       setError(err?.message ?? 'Authentication failed. Please try again.')
     } finally {
       setSubmitting(false)
