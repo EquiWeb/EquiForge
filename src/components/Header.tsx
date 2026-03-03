@@ -86,7 +86,7 @@ export default function Header() {
             className="nav-link hidden sm:inline-flex"
             activeProps={{ className: 'nav-link is-active' }}
           >
-            Demo
+            Playground
           </Link>
           <Link
             to="/storage"

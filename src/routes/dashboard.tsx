@@ -280,8 +280,8 @@ function StorageServicesSection() {
     <SectionShell title="Storage Services" className="lg:col-span-2">
       {services.length === 0 ? (
         <p className="text-sm text-[var(--sea-ink-soft)]">
-          No storage services provisioned yet. Use the MCP endpoint or demo
-          console to provision one.
+          No storage services provisioned yet. Use the MCP endpoint or playground
+          to provision one.
         </p>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">

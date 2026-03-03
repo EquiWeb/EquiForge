@@ -131,7 +131,7 @@ function McpPage() {
           single JSON-RPC 2.0 endpoint. Authenticate with an API key, then call
           any tool. Try it live in the{' '}
           <a href="/demo" className="underline">
-            Demo Console
+            Playground
           </a>
           .
         </p>

@@ -206,7 +206,7 @@ function DemoConsole() {
   return (
     <main className="page-wrap px-4 pb-10 pt-8">
       <section className="mb-6">
-        <p className="island-kicker mb-2">Demo Console</p>
+        <p className="island-kicker mb-2">Playground</p>
         <h1 className="display-title m-0 text-4xl font-bold tracking-tight text-[var(--sea-ink)] sm:text-5xl">
           Live MCP provisioning flow.
         </h1>
@@ -256,7 +256,7 @@ function DemoConsole() {
 
       <section className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
         {/* Actions panel */}
-        <article className="band-shell rounded-2xl p-6">
+        <article className="min-w-0 band-shell rounded-2xl p-6">
           <h2 className="m-0 text-lg font-semibold text-[var(--sea-ink)]">
             Actions
           </h2>
@@ -434,7 +434,7 @@ function DemoConsole() {
         </article>
 
         {/* Log panel */}
-        <article className="band-shell rounded-2xl p-6">
+        <article className="min-w-0 band-shell rounded-2xl p-6">
           <div className="flex items-center justify-between">
             <h2 className="m-0 text-lg font-semibold text-[var(--sea-ink)]">
               Request Log
@@ -450,7 +450,7 @@ function DemoConsole() {
             )}
           </div>
 
-          <div className="mt-4 flex max-h-[600px] flex-col gap-3 overflow-y-auto">
+          <div className="mt-4 flex max-h-[600px] flex-col gap-3 overflow-y-auto min-w-0">
             {log.length === 0 && (
               <p className="text-sm text-[var(--sea-ink-soft)]">
                 No requests yet. Paste your API key and click an action.
@@ -478,7 +478,7 @@ function DemoConsole() {
                     {new Date(entry.timestamp).toLocaleTimeString()}
                   </span>
                 </div>
-                <pre className="m-0 max-h-48 overflow-auto text-[11px] leading-relaxed text-[var(--sea-ink)]">
+                <pre className="m-0 max-h-48 overflow-auto whitespace-pre-wrap break-words text-[11px] leading-relaxed text-[var(--sea-ink)]">
                   {JSON.stringify(entry.payload, null, 2)}
                 </pre>
               </div>
