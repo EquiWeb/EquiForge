@@ -337,16 +337,16 @@ export const Route = createFileRoute('/s3/$')({
   server: {
     handlers: {
       PUT: async ({ request, params }) => {
-        return handlePut(request, (params as Record<string, string>)._ ?? '')
+        return handlePut(request, (params as Record<string, string>)._splat ?? '')
       },
       GET: async ({ request, params }) => {
-        return handleGet(request, (params as Record<string, string>)._ ?? '')
+        return handleGet(request, (params as Record<string, string>)._splat ?? '')
       },
       DELETE: async ({ request, params }) => {
-        return handleDelete(request, (params as Record<string, string>)._ ?? '')
+        return handleDelete(request, (params as Record<string, string>)._splat ?? '')
       },
       HEAD: async ({ request, params }) => {
-        return handleHead(request, (params as Record<string, string>)._ ?? '')
+        return handleHead(request, (params as Record<string, string>)._splat ?? '')
       },
     },
   },
