@@ -3,8 +3,33 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js'
 import { z } from 'zod'
 import { requireApiKey, type ApiKeyAuth } from '#/lib/apiAuth'
-import { getConvexClient, api } from '#/lib/convex'
+import { getAdminConvexClient, internal } from '#/lib/convex'
 import type { Id } from '../../convex/_generated/dataModel'
+import type { FunctionReference } from 'convex/server'
+
+// Helper: cast internal function refs to satisfy ConvexHttpClient's public-only types.
+// The admin client can call internal functions at runtime.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function asPublic<T extends FunctionReference<any, any>>(ref: T) {
+  return ref as unknown as FunctionReference<T['_type'], 'public'>
+}
+
+// Helper: wrap a tool handler to catch Convex/runtime errors and return MCP error responses.
+function safeTool<Args extends Record<string, unknown>>(
+  handler: (args: Args) => Promise<{ content: { type: 'text'; text: string }[]; isError?: boolean }>,
+) {
+  return async (args: Args) => {
+    try {
+      return await handler(args)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unknown error'
+      return {
+        content: [{ type: 'text' as const, text: JSON.stringify({ error: message }) }],
+        isError: true,
+      }
+    }
+  }
+}
 
 // ---------------------------------------------------------------------------
 // MCP Server factory — creates a fresh McpServer with all tools registered.
@@ -17,7 +42,7 @@ function createMcpServerForUser(auth: ApiKeyAuth) {
     version: '1.0.0',
   })
 
-  const client = getConvexClient()
+  const client = getAdminConvexClient()
   const userId = auth.userId as Id<'users'>
 
   // ----- Account tools -----
@@ -29,8 +54,8 @@ function createMcpServerForUser(auth: ApiKeyAuth) {
       orgName: z.string().describe('Organization name'),
       contact: z.string().describe('Contact email'),
     },
-    async ({ orgName, contact }) => {
-      const accountId = await client.mutation(api.mcp.apiCreateAccount, {
+    safeTool(async ({ orgName, contact }) => {
+      const accountId = await client.mutation(asPublic(internal.mcp.apiCreateAccount), {
         userId,
         orgName,
         contact,
@@ -43,15 +68,15 @@ function createMcpServerForUser(auth: ApiKeyAuth) {
           },
         ],
       }
-    },
+    }),
   )
 
   server.tool(
     'check_status',
     'Check account and service status for the authenticated user',
     {},
-    async () => {
-      const account = await client.query(api.mcp.apiGetAccountForUser, {
+    safeTool(async () => {
+      const account = await client.query(asPublic(internal.mcp.apiGetAccountForUser), {
         userId,
       })
       if (!account) {
@@ -61,7 +86,7 @@ function createMcpServerForUser(auth: ApiKeyAuth) {
         }
       }
 
-      const services = await client.query(api.mcp.apiListStorageServices, {
+      const services = await client.query(asPublic(internal.mcp.apiListStorageServices), {
         userId,
       })
 
@@ -77,7 +102,7 @@ function createMcpServerForUser(auth: ApiKeyAuth) {
                 paymentProfiles: account.paymentProfiles,
                 createdAt: account.createdAt,
               },
-              services: services.map((s) => ({
+              services: services.map((s: { _id: string; project: string; region: string; status: string; endpoint: string; createdAt: string }) => ({
                 id: s._id,
                 project: s.project,
                 region: s.region,
@@ -89,7 +114,7 @@ function createMcpServerForUser(auth: ApiKeyAuth) {
           },
         ],
       }
-    },
+    }),
   )
 
   // ----- Payment tools -----
@@ -102,8 +127,8 @@ function createMcpServerForUser(auth: ApiKeyAuth) {
       profile: z.string().describe('Payment profile identifier'),
       wallet: z.string().describe('Wallet address (e.g. x402://wallet/0x...)'),
     },
-    async ({ accountId, profile, wallet }) => {
-      const result = await client.mutation(api.mcp.apiAttachPaymentProfile, {
+    safeTool(async ({ accountId, profile, wallet }) => {
+      const result = await client.mutation(asPublic(internal.mcp.apiAttachPaymentProfile), {
         userId,
         accountId: accountId as Id<'accounts'>,
         profile,
@@ -123,7 +148,7 @@ function createMcpServerForUser(auth: ApiKeyAuth) {
           },
         ],
       }
-    },
+    }),
   )
 
   // ----- Storage provisioning tools -----
@@ -138,8 +163,8 @@ function createMcpServerForUser(auth: ApiKeyAuth) {
       usageCapGb: z.number().optional().describe('Usage cap in GB'),
       paymentProfile: z.string().describe('Payment profile to use'),
     },
-    async ({ accountId, project, region, usageCapGb, paymentProfile }) => {
-      const result = await client.mutation(api.mcp.apiCreateStorageService, {
+    safeTool(async ({ accountId, project, region, usageCapGb, paymentProfile }) => {
+      const result = await client.mutation(asPublic(internal.mcp.apiCreateStorageService), {
         userId,
         accountId: accountId as Id<'accounts'>,
         project,
@@ -156,7 +181,7 @@ function createMcpServerForUser(auth: ApiKeyAuth) {
       }
 
       // Fetch the created service to return full details
-      const service = await client.query(api.mcp.apiGetStorageService, {
+      const service = await client.query(asPublic(internal.mcp.apiGetStorageService), {
         serviceId: result as Id<'storageServices'>,
       })
 
@@ -176,7 +201,7 @@ function createMcpServerForUser(auth: ApiKeyAuth) {
           },
         ],
       }
-    },
+    }),
   )
 
   server.tool(
@@ -186,8 +211,8 @@ function createMcpServerForUser(auth: ApiKeyAuth) {
       serviceId: z.string().describe('Storage service ID'),
       reason: z.string().optional().describe('Reason for rotation'),
     },
-    async ({ serviceId, reason }) => {
-      const result = await client.mutation(api.mcp.apiRotateStorageKeys, {
+    safeTool(async ({ serviceId, reason }) => {
+      const result = await client.mutation(asPublic(internal.mcp.apiRotateStorageKeys), {
         userId,
         serviceId: serviceId as Id<'storageServices'>,
         reason,
@@ -200,7 +225,7 @@ function createMcpServerForUser(auth: ApiKeyAuth) {
         }
       }
 
-      const service = await client.query(api.mcp.apiGetStorageService, {
+      const service = await client.query(asPublic(internal.mcp.apiGetStorageService), {
         serviceId: serviceId as Id<'storageServices'>,
       })
 
@@ -219,7 +244,7 @@ function createMcpServerForUser(auth: ApiKeyAuth) {
           },
         ],
       }
-    },
+    }),
   )
 
   // ----- S3 Bucket tools -----
@@ -233,31 +258,23 @@ function createMcpServerForUser(auth: ApiKeyAuth) {
       region: z.string().describe('Bucket region'),
       isPublic: z.boolean().optional().describe('Whether bucket is publicly readable'),
     },
-    async ({ accountId, name, region, isPublic }) => {
-      try {
-        const bucketId = await client.mutation(api.storage.apiCreateBucket, {
-          userId,
-          accountId: accountId as Id<'accounts'>,
-          name,
-          region,
-          isPublic,
-        })
-        return {
-          content: [
-            {
-              type: 'text' as const,
-              text: JSON.stringify({ bucketId, name, region, status: 'created' }),
-            },
-          ],
-        }
-      } catch (err) {
-        const message = err instanceof Error ? err.message : 'Unknown error'
-        return {
-          content: [{ type: 'text' as const, text: JSON.stringify({ error: message }) }],
-          isError: true,
-        }
+    safeTool(async ({ accountId, name, region, isPublic }) => {
+      const bucketId = await client.mutation(asPublic(internal.storage.apiCreateBucket), {
+        userId,
+        accountId: accountId as Id<'accounts'>,
+        name,
+        region,
+        isPublic,
+      })
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: JSON.stringify({ bucketId, name, region, status: 'created' }),
+          },
+        ],
       }
-    },
+    }),
   )
 
   server.tool(
@@ -266,8 +283,8 @@ function createMcpServerForUser(auth: ApiKeyAuth) {
     {
       accountId: z.string().describe('Account ID'),
     },
-    async ({ accountId }) => {
-      const buckets = await client.query(api.storage.apiListBuckets, {
+    safeTool(async ({ accountId }) => {
+      const buckets = await client.query(asPublic(internal.storage.apiListBuckets), {
         userId,
         accountId: accountId as Id<'accounts'>,
       })
@@ -276,7 +293,7 @@ function createMcpServerForUser(auth: ApiKeyAuth) {
           {
             type: 'text' as const,
             text: JSON.stringify({
-              buckets: buckets.map((b) => ({
+              buckets: buckets.map((b: { _id: string; name: string; region: string; isPublic: boolean; createdAt: string }) => ({
                 id: b._id,
                 name: b.name,
                 region: b.region,
@@ -287,7 +304,7 @@ function createMcpServerForUser(auth: ApiKeyAuth) {
           },
         ],
       }
-    },
+    }),
   )
 
   // ----- S3 Object tools -----
@@ -301,8 +318,8 @@ function createMcpServerForUser(auth: ApiKeyAuth) {
       contentType: z.string().optional().describe('MIME type'),
       size: z.number().describe('Object size in bytes'),
     },
-    async ({ bucketName, key, contentType, size }) => {
-      const bucket = await client.query(api.storage.getBucketByName, { name: bucketName })
+    safeTool(async ({ bucketName, key, contentType, size }) => {
+      const bucket = await client.query(asPublic(internal.storage.getBucketByName), { name: bucketName })
       if (!bucket) {
         return {
           content: [{ type: 'text' as const, text: JSON.stringify({ error: 'Bucket not found' }) }],
@@ -311,7 +328,7 @@ function createMcpServerForUser(auth: ApiKeyAuth) {
       }
 
       // Generate an upload URL from Convex
-      const uploadUrl = await client.mutation(api.storage.generateUploadUrl, {})
+      const uploadUrl = await client.mutation(asPublic(internal.storage.generateUploadUrl), {})
 
       return {
         content: [
@@ -331,7 +348,7 @@ function createMcpServerForUser(auth: ApiKeyAuth) {
           },
         ],
       }
-    },
+    }),
   )
 
   server.tool(
@@ -345,33 +362,25 @@ function createMcpServerForUser(auth: ApiKeyAuth) {
       contentType: z.string().describe('MIME type'),
       etag: z.string().describe('ETag/hash of the content'),
     },
-    async ({ bucketId, key, storageId, size, contentType, etag }) => {
-      try {
-        const objectId = await client.mutation(api.storage.apiPutObject, {
-          userId,
-          bucketId: bucketId as Id<'storageBuckets'>,
-          key,
-          storageId: storageId as Id<'_storage'>,
-          size,
-          contentType,
-          etag,
-        })
-        return {
-          content: [
-            {
-              type: 'text' as const,
-              text: JSON.stringify({ objectId, key, status: 'stored' }),
-            },
-          ],
-        }
-      } catch (err) {
-        const message = err instanceof Error ? err.message : 'Unknown error'
-        return {
-          content: [{ type: 'text' as const, text: JSON.stringify({ error: message }) }],
-          isError: true,
-        }
+    safeTool(async ({ bucketId, key, storageId, size, contentType, etag }) => {
+      const objectId = await client.mutation(asPublic(internal.storage.apiPutObject), {
+        userId,
+        bucketId: bucketId as Id<'storageBuckets'>,
+        key,
+        storageId: storageId as Id<'_storage'>,
+        size,
+        contentType,
+        etag,
+      })
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: JSON.stringify({ objectId, key, status: 'stored' }),
+          },
+        ],
       }
-    },
+    }),
   )
 
   server.tool(
@@ -381,8 +390,8 @@ function createMcpServerForUser(auth: ApiKeyAuth) {
       bucketName: z.string().describe('Bucket name'),
       key: z.string().describe('Object key'),
     },
-    async ({ bucketName, key }) => {
-      const bucket = await client.query(api.storage.getBucketByName, { name: bucketName })
+    safeTool(async ({ bucketName, key }) => {
+      const bucket = await client.query(asPublic(internal.storage.getBucketByName), { name: bucketName })
       if (!bucket) {
         return {
           content: [{ type: 'text' as const, text: JSON.stringify({ error: 'Bucket not found' }) }],
@@ -390,7 +399,7 @@ function createMcpServerForUser(auth: ApiKeyAuth) {
         }
       }
 
-      const obj = await client.query(api.storage.getObject, {
+      const obj = await client.query(asPublic(internal.storage.getObject), {
         bucketId: bucket._id,
         key,
       })
@@ -417,7 +426,7 @@ function createMcpServerForUser(auth: ApiKeyAuth) {
           },
         ],
       }
-    },
+    }),
   )
 
   server.tool(
@@ -427,8 +436,8 @@ function createMcpServerForUser(auth: ApiKeyAuth) {
       bucketName: z.string().describe('Bucket name'),
       key: z.string().describe('Object key'),
     },
-    async ({ bucketName, key }) => {
-      const bucket = await client.query(api.storage.getBucketByName, { name: bucketName })
+    safeTool(async ({ bucketName, key }) => {
+      const bucket = await client.query(asPublic(internal.storage.getBucketByName), { name: bucketName })
       if (!bucket) {
         return {
           content: [{ type: 'text' as const, text: JSON.stringify({ error: 'Bucket not found' }) }],
@@ -436,25 +445,17 @@ function createMcpServerForUser(auth: ApiKeyAuth) {
         }
       }
 
-      try {
-        await client.mutation(api.storage.apiDeleteObject, {
-          userId,
-          bucketId: bucket._id,
-          key,
-        })
-        return {
-          content: [
-            { type: 'text' as const, text: JSON.stringify({ key, status: 'deleted' }) },
-          ],
-        }
-      } catch (err) {
-        const message = err instanceof Error ? err.message : 'Unknown error'
-        return {
-          content: [{ type: 'text' as const, text: JSON.stringify({ error: message }) }],
-          isError: true,
-        }
+      await client.mutation(asPublic(internal.storage.apiDeleteObject), {
+        userId,
+        bucketId: bucket._id,
+        key,
+      })
+      return {
+        content: [
+          { type: 'text' as const, text: JSON.stringify({ key, status: 'deleted' }) },
+        ],
       }
-    },
+    }),
   )
 
   server.tool(
@@ -465,8 +466,8 @@ function createMcpServerForUser(auth: ApiKeyAuth) {
       prefix: z.string().optional().describe('Key prefix to filter by'),
       maxKeys: z.number().optional().describe('Max results (default 1000)'),
     },
-    async ({ bucketName, prefix, maxKeys }) => {
-      const bucket = await client.query(api.storage.getBucketByName, { name: bucketName })
+    safeTool(async ({ bucketName, prefix, maxKeys }) => {
+      const bucket = await client.query(asPublic(internal.storage.getBucketByName), { name: bucketName })
       if (!bucket) {
         return {
           content: [{ type: 'text' as const, text: JSON.stringify({ error: 'Bucket not found' }) }],
@@ -474,7 +475,7 @@ function createMcpServerForUser(auth: ApiKeyAuth) {
         }
       }
 
-      const result = await client.query(api.storage.listObjects, {
+      const result = await client.query(asPublic(internal.storage.listObjects), {
         bucketId: bucket._id,
         prefix,
         maxKeys,
@@ -483,7 +484,7 @@ function createMcpServerForUser(auth: ApiKeyAuth) {
       return {
         content: [{ type: 'text' as const, text: JSON.stringify(result) }],
       }
-    },
+    }),
   )
 
   return server
@@ -497,7 +498,16 @@ async function handleMcpRequest(request: Request): Promise<Response> {
   // Authenticate via API key
   const authResult = await requireApiKey(request, 'mcp')
   if (authResult instanceof Response) {
-    return authResult
+    // Return auth errors in JSON-RPC 2.0 format
+    const body = await authResult.json() as { error: string }
+    return Response.json(
+      {
+        jsonrpc: '2.0',
+        error: { code: -32001, message: body.error ?? 'Authentication failed' },
+        id: null,
+      },
+      { status: authResult.status },
+    )
   }
 
   // Create a stateless transport (no session tracking needed)

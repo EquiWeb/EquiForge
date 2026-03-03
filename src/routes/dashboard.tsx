@@ -68,6 +68,7 @@ function AccountSection() {
   const account = useQuery(api.mcp.getAccountForUser)
   const createAccount = useMutation(api.mcp.createAccount)
   const [creating, setCreating] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   if (account === undefined) {
     return <SectionShell title="Account" loading />
@@ -79,16 +80,25 @@ function AccountSection() {
         <p className="text-sm text-[var(--sea-ink-soft)]">
           No account yet. Create one to start using EquiForge services.
         </p>
+        {error && (
+          <div className="mt-2 rounded-xl border border-red-300 bg-red-50 p-2 text-xs text-red-700 dark:border-red-700 dark:bg-red-950 dark:text-red-300">
+            {error}
+          </div>
+        )}
         <form
           onSubmit={async (e) => {
             e.preventDefault()
             setCreating(true)
+            setError(null)
             const fd = new FormData(e.currentTarget)
             try {
               await createAccount({
                 orgName: fd.get('orgName') as string,
                 contact: fd.get('contact') as string,
               })
+            } catch (err: unknown) {
+              const message = err instanceof Error ? err.message : 'Failed to create account'
+              setError(message)
             } finally {
               setCreating(false)
             }
@@ -197,7 +207,10 @@ function ApiKeysSection() {
             {!k.revokedAt && (
               <button
                 type="button"
-                onClick={() => revokeKey({ keyId: k._id })}
+                onClick={() => {
+                  if (!window.confirm(`Revoke API key "${k.name}" (${k.prefix}...)? This cannot be undone.`)) return
+                  revokeKey({ keyId: k._id })
+                }}
                 className="rounded-lg border border-red-300 px-2 py-1 text-xs font-semibold text-red-600 transition hover:bg-red-50 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-950"
               >
                 Revoke

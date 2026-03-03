@@ -1,4 +1,4 @@
-import { mutation, query } from './_generated/server'
+import { mutation, query, internalMutation, internalQuery } from './_generated/server'
 import { v } from 'convex/values'
 import { getAuthUserId } from '@convex-dev/auth/server'
 
@@ -91,7 +91,10 @@ export const deleteBucket = mutation({
   },
 })
 
-export const getBucketByName = query({
+/**
+ * Look up a bucket by name. Internal only — used by server-side S3/MCP routes.
+ */
+export const getBucketByName = internalQuery({
   args: {
     name: v.string(),
   },
@@ -105,7 +108,11 @@ export const getBucketByName = query({
 
 // --- Object operations ---
 
-export const generateUploadUrl = mutation({
+/**
+ * Generate an upload URL. Internal only — called from server-side routes
+ * after API key validation.
+ */
+export const generateUploadUrl = internalMutation({
   args: {},
   handler: async (ctx) => {
     return await ctx.storage.generateUploadUrl()
@@ -170,7 +177,10 @@ export const putObject = mutation({
   },
 })
 
-export const getObject = query({
+/**
+ * Get a single object by bucket+key. Internal only — used by server-side routes.
+ */
+export const getObject = internalQuery({
   args: {
     bucketId: v.id('storageBuckets'),
     key: v.string(),
@@ -221,7 +231,58 @@ export const deleteObject = mutation({
   },
 })
 
-export const listObjects = query({
+/**
+ * Web-authenticated list objects. Used by the storage UI.
+ * Verifies the user owns the bucket before returning objects.
+ */
+export const webListObjects = query({
+  args: {
+    bucketId: v.id('storageBuckets'),
+    prefix: v.optional(v.string()),
+    maxKeys: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx)
+    if (!userId) throw new Error('Not authenticated')
+
+    const bucket = await ctx.db.get(args.bucketId)
+    if (!bucket) throw new Error('Bucket not found')
+
+    const account = await ctx.db.get(bucket.accountId)
+    if (!account || account.userId !== userId) throw new Error('Not authorized')
+
+    const objects = await ctx.db
+      .query('storageObjects')
+      .withIndex('by_bucket', (q) => q.eq('bucketId', args.bucketId))
+      .collect()
+
+    let filtered = objects
+    if (args.prefix) {
+      filtered = objects.filter((o) => o.key.startsWith(args.prefix!))
+    }
+
+    const limit = args.maxKeys ?? 1000
+    const truncated = filtered.length > limit
+    const result = filtered.slice(0, limit)
+
+    return {
+      objects: result.map((o) => ({
+        key: o.key,
+        size: o.size,
+        etag: o.etag,
+        contentType: o.contentType,
+        lastModified: o.updatedAt,
+      })),
+      isTruncated: truncated,
+      keyCount: result.length,
+    }
+  },
+})
+
+/**
+ * List objects in a bucket. Internal only — used by server-side routes.
+ */
+export const listObjects = internalQuery({
   args: {
     bucketId: v.id('storageBuckets'),
     prefix: v.optional(v.string()),
@@ -256,7 +317,10 @@ export const listObjects = query({
   },
 })
 
-export const getObjectDownloadUrl = query({
+/**
+ * Get download URL for an object. Internal only — used by server-side routes.
+ */
+export const getObjectDownloadUrl = internalQuery({
   args: {
     bucketId: v.id('storageBuckets'),
     key: v.string(),
@@ -277,10 +341,12 @@ export const getObjectDownloadUrl = query({
 
 // ============================================================
 // API-key-authenticated functions (userId passed explicitly)
-// Called from server-side S3/MCP handlers after API key validation.
+// Called from server-side S3/MCP handlers via admin client.
+// These are internalMutation/internalQuery so they cannot be
+// called from the public Convex API.
 // ============================================================
 
-export const apiCreateBucket = mutation({
+export const apiCreateBucket = internalMutation({
   args: {
     userId: v.id('users'),
     accountId: v.id('accounts'),
@@ -310,7 +376,7 @@ export const apiCreateBucket = mutation({
   },
 })
 
-export const apiListBuckets = query({
+export const apiListBuckets = internalQuery({
   args: {
     userId: v.id('users'),
     accountId: v.id('accounts'),
@@ -326,7 +392,7 @@ export const apiListBuckets = query({
   },
 })
 
-export const apiDeleteBucket = mutation({
+export const apiDeleteBucket = internalMutation({
   args: {
     userId: v.id('users'),
     bucketId: v.id('storageBuckets'),
@@ -349,7 +415,7 @@ export const apiDeleteBucket = mutation({
   },
 })
 
-export const apiPutObject = mutation({
+export const apiPutObject = internalMutation({
   args: {
     userId: v.id('users'),
     bucketId: v.id('storageBuckets'),
@@ -402,7 +468,7 @@ export const apiPutObject = mutation({
   },
 })
 
-export const apiDeleteObject = mutation({
+export const apiDeleteObject = internalMutation({
   args: {
     userId: v.id('users'),
     bucketId: v.id('storageBuckets'),

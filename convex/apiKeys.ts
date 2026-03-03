@@ -1,4 +1,4 @@
-import { mutation, query } from './_generated/server'
+import { mutation, query, internalQuery, internalMutation } from './_generated/server'
 import { v } from 'convex/values'
 import { getAuthUserId } from '@convex-dev/auth/server'
 
@@ -99,9 +99,9 @@ export const revokeApiKey = mutation({
 /**
  * Validate an API key by its hash.
  * Returns the userId and scopes if valid, null if not.
- * Used by server-side auth middleware.
+ * Called only from server-side auth middleware via admin client.
  */
-export const validateApiKey = query({
+export const validateApiKey = internalQuery({
   args: {
     keyHash: v.string(),
   },
@@ -124,9 +124,10 @@ export const validateApiKey = query({
 })
 
 /**
- * Internal: update lastUsedAt for an API key.
+ * Update lastUsedAt for an API key.
+ * Called only from server-side auth middleware via admin client.
  */
-export const touchApiKey = mutation({
+export const touchApiKey = internalMutation({
   args: {
     keyId: v.id('apiKeys'),
   },

@@ -1,4 +1,4 @@
-import { mutation, query } from './_generated/server'
+import { mutation, query, internalMutation, internalQuery } from './_generated/server'
 import { v } from 'convex/values'
 import { getAuthUserId } from '@convex-dev/auth/server'
 
@@ -137,7 +137,18 @@ export const getStorageService = query({
     serviceId: v.id('storageServices'),
   },
   handler: async (ctx, args) => {
-    return await ctx.db.get(args.serviceId)
+    const userId = await getAuthUserId(ctx)
+    if (!userId) throw new Error('Not authenticated')
+
+    const service = await ctx.db.get(args.serviceId)
+    if (!service) return null
+
+    const account = await ctx.db.get(service.accountId)
+    if (!account || account.userId !== userId) throw new Error('Not authorized')
+
+    // Omit secretAccessKey from web-facing response
+    const { secretAccessKey: _secret, ...safeService } = service
+    return safeService
   },
 })
 
@@ -192,12 +203,12 @@ export const rotateStorageKeys = mutation({
 
 // ============================================================
 // API-key-authenticated functions (userId passed explicitly)
-// Called from server-side MCP/S3 handlers after API key validation.
-// These are safe because only our server code calls them, never
-// the browser client directly.
+// Called from server-side MCP/S3 handlers via admin client.
+// These are internalMutation/internalQuery so they cannot be
+// called from the public Convex API.
 // ============================================================
 
-export const apiCreateAccount = mutation({
+export const apiCreateAccount = internalMutation({
   args: {
     userId: v.id('users'),
     orgName: v.string(),
@@ -215,7 +226,7 @@ export const apiCreateAccount = mutation({
   },
 })
 
-export const apiGetAccountForUser = query({
+export const apiGetAccountForUser = internalQuery({
   args: {
     userId: v.id('users'),
   },
@@ -227,7 +238,7 @@ export const apiGetAccountForUser = query({
   },
 })
 
-export const apiAttachPaymentProfile = mutation({
+export const apiAttachPaymentProfile = internalMutation({
   args: {
     userId: v.id('users'),
     accountId: v.id('accounts'),
@@ -255,7 +266,7 @@ export const apiAttachPaymentProfile = mutation({
   },
 })
 
-export const apiCreateStorageService = mutation({
+export const apiCreateStorageService = internalMutation({
   args: {
     userId: v.id('users'),
     accountId: v.id('accounts'),
@@ -291,7 +302,7 @@ export const apiCreateStorageService = mutation({
   },
 })
 
-export const apiGetStorageService = query({
+export const apiGetStorageService = internalQuery({
   args: {
     serviceId: v.id('storageServices'),
   },
@@ -300,7 +311,7 @@ export const apiGetStorageService = query({
   },
 })
 
-export const apiListStorageServices = query({
+export const apiListStorageServices = internalQuery({
   args: {
     userId: v.id('users'),
   },
@@ -318,7 +329,7 @@ export const apiListStorageServices = query({
   },
 })
 
-export const apiRotateStorageKeys = mutation({
+export const apiRotateStorageKeys = internalMutation({
   args: {
     userId: v.id('users'),
     serviceId: v.id('storageServices'),

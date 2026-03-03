@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useConvexAuth, useQuery, useMutation } from 'convex/react'
 import { api } from '../../convex/_generated/api'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import type { Id } from '../../convex/_generated/dataModel'
 
 export const Route = createFileRoute('/storage')({
@@ -13,17 +13,18 @@ function StoragePage() {
   const navigate = useNavigate()
   const [selectedBucket, setSelectedBucket] = useState<string | null>(null)
 
-  if (isLoading) {
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      navigate({ to: '/auth' })
+    }
+  }, [isAuthenticated, isLoading, navigate])
+
+  if (isLoading || !isAuthenticated) {
     return (
       <main className="page-wrap px-4 pb-10 pt-8">
         <p className="text-sm text-[var(--sea-ink-soft)]">Loading...</p>
       </main>
     )
-  }
-
-  if (!isAuthenticated) {
-    navigate({ to: '/auth' })
-    return null
   }
 
   return (
@@ -208,7 +209,7 @@ function ObjectBrowser({
   bucketId: Id<'storageBuckets'>
   onClose: () => void
 }) {
-  const objects = useQuery(api.storage.listObjects, {
+  const objects = useQuery(api.storage.webListObjects, {
     bucketId,
   })
   const deleteObject = useMutation(api.storage.deleteObject)
