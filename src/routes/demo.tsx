@@ -55,6 +55,7 @@ function DemoConsole() {
   const [objectKey, setObjectKey] = useState('hello.txt')
   const [objectContent, setObjectContent] = useState('Hello from EquiForge!')
   const [objectContentType, setObjectContentType] = useState('text/plain')
+  const [extendDays, setExtendDays] = useState(30)
 
   /** Scan a parsed tool response for known ID shapes and track them */
   const harvestIds = useCallback((data: unknown) => {
@@ -391,6 +392,33 @@ function DemoConsole() {
               detail="reason='demo rotation'"
               onClick={() => callTool('rotate_keys', { serviceId, reason: 'demo rotation' })}
             />
+            <div className="flex items-end gap-2">
+              <div className="flex-1">
+                <ToolButton
+                  disabled={disabled || !serviceId}
+                  color="amber"
+                  name="extend_storage"
+                  detail={`days=${extendDays}`}
+                  onClick={() => callTool('extend_storage', { serviceId, days: extendDays })}
+                />
+              </div>
+              <div className="shrink-0">
+                <label className="mb-0.5 block text-[10px] uppercase tracking-wider text-[var(--sea-ink-soft)]">
+                  Days
+                </label>
+                <input
+                  type="number"
+                  min={30}
+                  step={30}
+                  value={extendDays}
+                  onChange={(e) => {
+                    const v = Math.max(30, Math.round(Number(e.target.value) / 30) * 30)
+                    setExtendDays(v || 30)
+                  }}
+                  className="w-20 rounded-lg border border-[var(--line)] bg-[var(--surface-strong)] px-2.5 py-1.5 text-xs text-[var(--sea-ink)] outline-none focus:border-[var(--lagoon)]"
+                />
+              </div>
+            </div>
           </div>
 
           {/* --- Buckets --- */}

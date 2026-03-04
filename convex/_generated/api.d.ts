@@ -10,6 +10,8 @@
 
 import type * as apiKeys from "../apiKeys.js";
 import type * as auth from "../auth.js";
+import type * as billing from "../billing.js";
+import type * as crons from "../crons.js";
 import type * as http from "../http.js";
 import type * as mcp from "../mcp.js";
 import type * as storage from "../storage.js";
@@ -23,6 +25,8 @@ import type {
 declare const fullApi: ApiFromModules<{
   apiKeys: typeof apiKeys;
   auth: typeof auth;
+  billing: typeof billing;
+  crons: typeof crons;
   http: typeof http;
   mcp: typeof mcp;
   storage: typeof storage;

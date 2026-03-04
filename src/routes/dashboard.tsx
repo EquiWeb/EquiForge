@@ -3,6 +3,7 @@ import { useAuthActions } from '@convex-dev/auth/react'
 import { useConvexAuth, useQuery, useMutation } from 'convex/react'
 import { api } from '../../convex/_generated/api'
 import { useState, useEffect } from 'react'
+import { daysUntilExpiry, formatExpiry } from '@/lib/billing-dates'
 
 export const Route = createFileRoute('/dashboard')({
   component: Dashboard,
@@ -285,26 +286,72 @@ function StorageServicesSection() {
         </p>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
-          {services.map((s) => (
-            <div
-              key={s._id}
-              className="rounded-xl border border-[var(--line)] bg-[var(--tint-amber)] p-4"
-            >
-              <p className="m-0 text-sm font-semibold text-[var(--sea-ink)]">
-                {s.project}
-              </p>
-              <p className="m-0 text-xs uppercase tracking-[0.18em] text-[var(--kicker)]">
-                {s.status} &middot; {s.region}
-              </p>
-              <div className="mt-2 space-y-1 text-xs text-[var(--sea-ink-soft)]">
-                <p className="m-0">Endpoint: {s.endpoint}</p>
-                <p className="m-0">Access key: {s.accessKeyId}</p>
-                <p className="m-0">
-                  Usage cap: {s.usageCapGb ? `${s.usageCapGb} GB` : 'Unlimited'}
+          {services.map((s) => {
+            const statusColors: Record<string, string> = {
+              active: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
+              grace: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300',
+              deleting: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
+              deleted: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
+            }
+            const badgeClass = statusColors[s.status] ?? statusColors.active
+            const expiresAtStr = s.expiresAt
+              ? new Date(s.expiresAt).toISOString()
+              : undefined
+            const graceExpiresAtStr = s.graceExpiresAt
+              ? new Date(s.graceExpiresAt).toISOString()
+              : undefined
+
+            return (
+              <div
+                key={s._id}
+                className="rounded-xl border border-[var(--line)] bg-[var(--tint-amber)] p-4"
+              >
+                <div className="flex items-center justify-between">
+                  <p className="m-0 text-sm font-semibold text-[var(--sea-ink)]">
+                    {s.project}
+                  </p>
+                  <span
+                    className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${badgeClass}`}
+                  >
+                    {s.status}
+                  </span>
+                </div>
+                <p className="m-0 text-xs uppercase tracking-[0.18em] text-[var(--kicker)]">
+                  {s.region}
                 </p>
+                <div className="mt-2 space-y-1 text-xs text-[var(--sea-ink-soft)]">
+                  <p className="m-0">Endpoint: {s.endpoint}</p>
+                  <p className="m-0">Access key: {s.accessKeyId}</p>
+                  <p className="m-0">
+                    Usage cap: {s.usageCapGb ? `${s.usageCapGb} GB` : 'Unlimited'}
+                  </p>
+                  {expiresAtStr ? (
+                    <>
+                      <p className="m-0">
+                        Expiry: {formatExpiry(expiresAtStr)}
+                      </p>
+                      <p className="m-0">
+                        Days remaining:{' '}
+                        {(() => {
+                          const days = daysUntilExpiry(expiresAtStr)
+                          if (days < 0) return <span className="text-red-600 dark:text-red-400">Expired</span>
+                          if (days <= 7) return <span className="text-amber-600 dark:text-amber-400">{days}</span>
+                          return <span className="text-green-700 dark:text-green-400">{days}</span>
+                        })()}
+                      </p>
+                    </>
+                  ) : (
+                    <p className="m-0">Expiry: No expiry set</p>
+                  )}
+                  {s.status === 'grace' && graceExpiresAtStr && (
+                    <p className="m-0 font-medium text-amber-700 dark:text-amber-400">
+                      Grace period ends: {formatExpiry(graceExpiresAtStr)}
+                    </p>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
     </SectionShell>
