@@ -56,13 +56,19 @@ export default defineSchema({
     region: v.string(),
     usageCapGb: v.union(v.number(), v.null()),
     paymentProfile: v.string(),
+    // Status: "active" | "grace" | "deleting" | "deleted" | "provisioning"
     status: v.string(),
     endpoint: v.string(),
     accessKeyId: v.string(),
     secretAccessKey: v.string(),
+    // Expiry fields — snapped to 23:59:00 UTC on the target day
+    expiresAt: v.optional(v.string()), // ISO 8601, when active period ends
+    graceExpiresAt: v.optional(v.string()), // ISO 8601, expiresAt + 5 calendar days
     createdAt: v.string(),
     updatedAt: v.string(),
-  }).index('by_account', ['accountId']),
+  })
+    .index('by_account', ['accountId'])
+    .index('by_status', ['status']),
 
   // --- S3-compatible storage ---
 
@@ -91,4 +97,31 @@ export default defineSchema({
   })
     .index('by_bucket', ['bucketId'])
     .index('by_bucket_key', ['bucketId', 'key']),
+
+  // --- Billing / x402 audit trail ---
+
+  billingEvents: defineTable({
+    accountId: v.id('accounts'),
+    serviceId: v.optional(v.id('storageServices')),
+    bucketId: v.optional(v.id('storageBuckets')),
+    objectKey: v.optional(v.string()),
+    // Operation that triggered the charge
+    operation: v.string(), // "PUT" | "GET" | "HEAD" | "LIST" | "CREATE_BUCKET" | "PROVISION" | "EXTEND"
+    // Pricing details (all in USD)
+    amountUsd: v.number(), // computed server-side price
+    sizeBytes: v.optional(v.number()), // object size used for price calc
+    wasGracePeriod: v.boolean(), // true if penalty rate applied
+    // x402 settlement
+    txHash: v.string(), // on-chain tx hash — idempotency key
+    facilitatorResponse: v.optional(v.string()), // raw JSON from facilitator
+    network: v.string(), // "base-sepolia" | "base"
+    payerAddress: v.string(), // agent's wallet
+    receiverAddress: v.string(), // our wallet (EQUIFORGE_WALLET_ADDRESS)
+    // Timestamps
+    settledAt: v.string(), // ISO 8601, when settlement confirmed
+    createdAt: v.string(),
+  })
+    .index('by_account', ['accountId'])
+    .index('by_service', ['serviceId'])
+    .index('by_tx_hash', ['txHash']),
 })
