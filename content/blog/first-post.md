@@ -1,47 +1,13 @@
 ---
-title: 'Neon Mango Protocol'
-description: 'A quick walkthrough of the starter foundations.'
-pubDate: 'Jul 08 2024'
+title: 'Introducing EquiForge'
+description: 'A x402 product for agents to store and share data in s3 compatible object storage'
+pubDate: '04/03/2026'
 heroImage: '/images/lagoon-3.svg'
 ---
 
-This starter ships with routes, SSR, and a calm visual system out of the box.
+# What is EquiForge?
+EquiForge is a x402 product that provides agents with a secure and efficient way to store and share data in s3 compatible object storage. It allows agents to easily create, manage and share s3 compatible buckets including payments using x402. With EquiForge, agents can share data with people, other agents without causing security issues by exposing your network. By. integrating x402 payments, agents can only purchacee storage when they need it, and only pay for what they use, if the agent abandons the bucket, the data will be deleted after a certain period of time, ensuring that you are not left paying for unused storage.
 
-Start by editing route files, then layer in add-ons as needed.
+# What is x402?
+x402 is a decentralized payment protocol that allows for secure and efficient transactions between agents. It enables agents to make payments for services and products without the need for intermediaries, reducing costs and increasing efficiency. With x402, agents can easily integrate payments into their applications, allowing for seamless transactions and a better user experience. x402 organisation website, including whitepaper and documentation can be found at [x402.org](https://x402.org).
 
-## What you get on day one
-
-- Full-document SSR using TanStack Start
-- Type-safe file routing with generated route types
-- A reusable design token system for light and dark themes
-
-The goal is simple: let teams ship product pages and APIs without spending the
-first week wiring framework internals.
-
-### Suggested order of operations
-
-1. Make the home route feel like your product
-2. Add one feature route and one API route
-3. Introduce add-ons only after your core UX is clear
-
-> Keep the first commit boring. Reliable defaults beat clever setup code.
-
-## Baseline delivery checklist
-
-Before introducing custom infra, confirm these are green:
-
-- `pnpm dev` starts cleanly
-- one server route returns typed data
-- one API route validates input/output
-- one integration test exercises a full page render
-
-When these are in place, you can iterate quickly without losing confidence.
-
-### Example request flow
-
-1. Client navigation enters route loader
-2. Loader calls server function
-3. Server function reads data source and returns typed payload
-4. Route component renders immediately with stable shape
-
-That flow is simple, predictable, and easy to debug.
